@@ -1,0 +1,19 @@
+{
+  "name": "book-release-tracker",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspace api",
+    "migrate:up": "npm run migrate:up --workspace api",
+    "migrate:down": "npm run migrate:down --workspace api",
+    "dev:api": "npm run dev --workspace api",
+    "dev:web": "npm run dev --workspace web"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
