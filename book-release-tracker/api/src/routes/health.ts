@@ -6,6 +6,7 @@ import { pingDb, type Db } from "../db.js";
  * 200 only when the app can reach its database; 503 otherwise, so a deploy
  * with a broken DB connection is never promoted.
  */
+
 export function healthRouter(db: Db, gitSha: string): Router {
   const router = Router();
 

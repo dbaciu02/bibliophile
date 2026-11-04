@@ -1,6 +1,7 @@
 import request from "supertest";
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { rejectAllVerifier } from "../src/auth.js";
 import { createDb } from "../src/db.js";
 import { TEST_DATABASE_URL } from "./helpers.js";
 
@@ -8,8 +9,8 @@ const db = createDb(TEST_DATABASE_URL);
 // Port 1 on localhost: nothing listens there, so every connection is refused.
 const deadDb = createDb("postgres://app:app@127.0.0.1:1/nothing");
 
-const app = createApp({ db, gitSha: "abc1234" });
-const appWithDeadDb = createApp({ db: deadDb, gitSha: "abc1234" });
+const app = createApp({ db, gitSha: "abc1234", verifyToken: rejectAllVerifier });
+const appWithDeadDb = createApp({ db: deadDb, gitSha: "abc1234", verifyToken: rejectAllVerifier });
 
 afterAll(async () => {
   await db.end();
