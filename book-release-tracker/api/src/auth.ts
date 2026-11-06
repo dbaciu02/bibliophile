@@ -88,6 +88,21 @@ export const rejectAllVerifier: TokenVerifier = async () => {
   throw new Error("authentication is not configured");
 };
 
+function logTokenRejection(requestId: string | undefined, err: unknown): void {
+  if (process.env.NODE_ENV === "test") return; // the tests assert on the 401 instead
+  const e = err as { code?: unknown; claim?: unknown; message?: unknown };
+  console.warn(
+    JSON.stringify({
+      level: "warn",
+      msg: "token rejected",
+      requestId,
+      reason: typeof e.code === "string" ? e.code : "unknown", // e.g. ERR_JWT_EXPIRED
+      claim: typeof e.claim === "string" ? e.claim : undefined, // e.g. "iss" or "aud"
+      detail: typeof e.message === "string" ? e.message : String(err),
+    }),
+  );
+}
+
 function bearerToken(header: string | undefined): string | null {
   if (!header) return null;
   const match = /^Bearer ([A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]*)$/.exec(header);
@@ -115,8 +130,11 @@ export function requireAuth(verify: TokenVerifier, rule: { scope: Scope; roles: 
     let principal: Principal;
     try {
       principal = await verify(token);
-    } catch {
-      // Don't tell the caller which check failed; that's logged server-side later (step 9).
+    } catch (err) {
+      // Don't tell the CALLER which check failed (that helps an attacker), but
+      // log it server-side so a misconfiguration is quick to find. Never log
+      // the token itself.
+      logTokenRejection(res.locals.requestId as string | undefined, err);
       res.set("WWW-Authenticate", 'Bearer realm="api", error="invalid_token"');
       throw new HttpError(401, "unauthenticated", "The access token is invalid or expired");
     }

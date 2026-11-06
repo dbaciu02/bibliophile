@@ -5,7 +5,7 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 2 of 9 — API core.** See [Build plan](#build-plan).
+**Status: step 3 of 9 — Entra ID login.** See [Build plan](#build-plan).
 
 ## Layout
 
@@ -33,8 +33,9 @@ npm install
 #    yourself; create the same two DBs and adjust the URLs in api/.env.
 docker compose up -d db
 
-# 2. Configuration
+# 2. Configuration (fill in the Entra IDs: see docs/entra-id-setup.md)
 cp .env.example api/.env
+#    and create web/.env with the three VITE_ENTRA_* lines from .env.example
 
 # 3. Schema
 npm run migrate:up
@@ -63,6 +64,7 @@ npm run dev:web      # http://localhost:5173
 | `POST /api/releases` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 409 |
 | `PATCH /api/releases/:id` | Curator (`Releases.Write`) | 200, 400, 401, 403, 404 |
 | `DELETE /api/releases/:id` (soft hide) | Curator (`Releases.Write`) | 204, 400, 401, 403, 404 |
+| `GET /api/me` | Reader or Curator (`Releases.Read`) | 200, 401, 403 |
 | `GET /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 200, 401, 403 |
 | `POST /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 201 + Location, 400, 401, 403, 409 |
 | `DELETE /api/me/watchlist/:id` | Reader or Curator (`Watchlist.ReadWrite`) | 204, 400, 401, 403, 404 |
@@ -80,6 +82,11 @@ Notes:
 `api/src/auth.ts` accepts a request only if the bearer token passes, in order:
 signature (RS256, key from the JWKS), issuer, audience, expiry → otherwise
 **401**; then the route's scope and role → otherwise **403**.
+
+The browser signs in with `oidc-client-ts` (Authorization Code + PKCE,
+`state`, and a `nonce` the code passes explicitly, because the library doesn't
+add one by default). Tokens are kept in `sessionStorage`. Evidence guide:
+[docs/evidence/login-flow.md](docs/evidence/login-flow.md).
 
 Until Entra ID is configured (`ENTRA_TENANT_ID`, `ENTRA_API_CLIENT_ID` in
 `api/.env`), protected routes return 401 in development; production refuses to
@@ -121,7 +128,7 @@ the `X-Request-Id` header and the server log:
 
 1. ✅ Skeleton: repo, strict TS, initial reversible migration, `/healthz`, error shape, test command
 2. ✅ API core: releases + watchlist routes, validation, audit log writes, server-side token validation and roles
-3. Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
+3. 🔶 (code done, waiting on a real sign-in) Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
 4. Google Books integration: timeout, retry, cache, runtime validation, degraded mode
 5. Frontend pages with loading / empty / error states
 6. SSE live updates with replay

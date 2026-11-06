@@ -8,6 +8,9 @@ requires you to explain any of it.
 | --- | --- | --- | --- | --- |
 | 2026-10-22 | Claude | Project plan mapped to the requirements checklist; Entra ID chosen as OIDC provider | Plan: stack, data model, routes, build order | _(fill in)_ |
 | 2026-10-22 | Claude | Step 1 skeleton: repo layout, initial reversible migration, `/healthz`, error shape, request ids, release-date normalization + tests, React/TS shell, Entra setup guide | All files in the first commit | _(fill in: e.g. re-ran tests, read the migration line by line, did the hand predictions yourself)_ |
+| 2026-11-02 | Claude | Step 2: Implement Entra ID authentication in the web client | Web client configured with Vite environment variables for Entra ID | _(fill in: e.g. verified login flow, checked network requests, ensured tokens are correctly handled)_ |
+| 2026-11-03 | Claude | Step 3: Implement Entra ID authentication in the API | API configured with environment variables for Entra ID | _(fill in: e.g. verified token validation, checked network requests, ensured correct handling of authentication)_ |
+
 
 ## Challenged AI claims
 

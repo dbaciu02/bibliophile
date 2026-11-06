@@ -6,8 +6,15 @@
 #
 # Optional environment variables:
 #   BASE            API base URL (default http://localhost:3000)
-#   READER_TOKEN    access token for the Test Reader user   (after step 3)
-#   CURATOR_TOKEN   access token for the Test Curator user  (after step 3)
+#   READER_TOKEN    access token for the Test Reader user
+#   CURATOR_TOKEN   access token for the Test Curator user
+#
+# Getting a token: sign in to the app as that user, open DevTools → Console and run
+#   copy(JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage).find(k => k.startsWith("oidc.user:")))).access_token)
+# which copies it to the clipboard. Then in the terminal (input is hidden and
+# not saved in your shell history):
+#   read -rs READER_TOKEN && export READER_TOKEN      # paste, press Enter
+# Tokens expire after about an hour.
 #
 # Without tokens, only the public and 401 cases run; the rest are skipped and
 # say so. Tokens are passed in headers and never printed: `curl -i` shows the
@@ -60,6 +67,9 @@ run -X POST -H "Content-Type: application/json" \
   -d "{\"googleVolumeId\":\"$VOL\",\"title\":\"Evidence Book\",\"publishedDate\":\"2026-12\",\"authors\":[\"Evidence Author\"]}" \
   "$BASE/api/releases"
 
+step "GET /api/me anonymous -> 401" "curl -i $BASE/api/me"
+run "$BASE/api/me"
+
 step "GET /api/me/watchlist anonymous -> 401" "curl -i $BASE/api/me/watchlist"
 run "$BASE/api/me/watchlist"
 
@@ -68,7 +78,7 @@ run -H "Authorization: Bearer abc.def.ghi" "$BASE/api/me/watchlist"
 
 # ------------------------------------------------------------- Reader routes
 if [ -z "$READER_TOKEN" ]; then
-  echo; echo "## SKIPPED Reader cases: READER_TOKEN not set (available after build step 3)"
+  echo; echo "## SKIPPED Reader cases: READER_TOKEN not set "
 else
   R=(-H "Authorization: Bearer $READER_TOKEN")
 
@@ -76,6 +86,9 @@ else
   run -X POST "${R[@]}" -H "Content-Type: application/json" \
     -d "{\"googleVolumeId\":\"$VOL\",\"title\":\"Evidence Book\",\"publishedDate\":\"2026-12\",\"authors\":[\"Evidence Author\"]}" \
     "$BASE/api/releases"
+
+  step "GET /api/me -> 200 (identity and role from the validated token)" "curl -i -H 'Authorization: Bearer <reader token>' $BASE/api/me"
+  run "${R[@]}" "$BASE/api/me"
 
   step "GET /api/me/watchlist -> 200" "curl -i -H 'Authorization: Bearer <reader token>' $BASE/api/me/watchlist"
   run "${R[@]}" "$BASE/api/me/watchlist"
@@ -102,7 +115,7 @@ fi
 
 # ------------------------------------------------------------ Curator routes
 if [ -z "$CURATOR_TOKEN" ]; then
-  echo; echo "## SKIPPED Curator cases: CURATOR_TOKEN not set (available after build step 3)"
+  echo; echo "## SKIPPED Curator cases: CURATOR_TOKEN not set "
 else
   C=(-H "Authorization: Bearer $CURATOR_TOKEN")
   BODY="{\"googleVolumeId\":\"$VOL\",\"title\":\"Evidence Book\",\"publishedDate\":\"2026-12\",\"authors\":[\"Evidence Author\"],\"categories\":[\"Fiction\"]}"

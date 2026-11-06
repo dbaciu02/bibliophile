@@ -4,6 +4,7 @@ import type { Db } from "./db.js";
 import { errorHandler, notFound } from "./errors.js";
 import { requestId } from "./requestId.js";
 import { healthRouter } from "./routes/health.js";
+import { meRouter } from "./routes/me.js";
 import { releasesRouter } from "./routes/releases.js";
 import { watchlistRouter } from "./routes/watchlist.js";
 
@@ -30,6 +31,7 @@ export function createApp({ db, gitSha, verifyToken }: AppDeps): Express {
   app.use(healthRouter(db, gitSha));
   app.use("/api/releases", releasesRouter(db, verifyToken));
   app.use("/api/me/watchlist", watchlistRouter(db, verifyToken));
+  app.use("/api/me", meRouter(verifyToken));
   // Later steps mount /api/books/search (4) and /api/events (6) here.
 
   app.use(notFound);

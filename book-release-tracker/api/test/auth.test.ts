@@ -149,3 +149,26 @@ describe("F9 proof: anonymous -> 401, Reader -> 403, Curator -> 201 on a catalog
     expect401(await request(app).post("/api/releases").send({ nonsense: true }));
   });
 });
+
+describe("GET /api/me", () => {
+  it("returns the identity from the validated token, never cached", async () => {
+    const res = await request(app).get("/api/me").set(bearer(await issuer.sign(CURATOR)));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      subject: CURATOR.oid,
+      name: CURATOR.name,
+      roles: ["Curator"],
+      scopes: ["Releases.Read", "Releases.Write", "Watchlist.ReadWrite"],
+    });
+    expect(res.headers["cache-control"]).toBe("private, no-store");
+  });
+
+  it("401 without a token", async () => {
+    expect401(await request(app).get("/api/me"));
+  });
+
+  it("403 for a valid token whose user has no role assigned", async () => {
+    const res = await request(app).get("/api/me").set(bearer(await issuer.sign({ ...READER, roles: [] })));
+    expect(res.status).toBe(403);
+  });
+});
