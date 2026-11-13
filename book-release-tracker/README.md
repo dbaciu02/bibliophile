@@ -128,8 +128,8 @@ the `X-Request-Id` header and the server log:
 
 1. ✅ Skeleton: repo, strict TS, initial reversible migration, `/healthz`, error shape, test command
 2. ✅ API core: releases + watchlist routes, validation, audit log writes, server-side token validation and roles
-3. 🔶 (code done, waiting on a real sign-in) Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
-4. Google Books integration: timeout, retry, cache, runtime validation, degraded mode
+3. ✅ (code done, waiting on a real sign-in) Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
+4. 🔶 Google Books integration: timeout, retry, cache, runtime validation, degraded mode
 5. Frontend pages with loading / empty / error states
 6. SSE live updates with replay
 7. MCP server and MCP App
