@@ -46,7 +46,7 @@ the login if the token's `nonce` claim differs from the one stored before the
 redirect (`_validateIdTokenAttributes` in the library). The token itself is
 redacted, so this half is shown by code reference, not by the HAR.
 
-### Paste here (commit `_______`, date `11/06/2026`)
+### Paste here (commit `562664a9ac62ca004a3e36b93a213cbcb792ddfe`, date ran script `11/06/2026`)
 
 ```
 discovery:https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/v2.0/.well-known/openid-configuration
