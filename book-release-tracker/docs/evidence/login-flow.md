@@ -46,13 +46,42 @@ the login if the token's `nonce` claim differs from the one stored before the
 redirect (`_validateIdTokenAttributes` in the library). The token itself is
 redacted, so this half is shown by code reference, not by the HAR.
 
-### Paste here (commit `_______`, date `_______`)
+### Paste here (commit `_______`, date `11/06/2026`)
 
 ```
-authorize request URL:
-callback URL:
-token request body:
-/api/me response status and body:
+discovery:https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/v2.0/.well-known/openid-configuration
+
+authorize request URL: https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/oauth2/v2.0/authorize?client_id=381a27b9-49b8-4b65-825a-d896f65690e2&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&response_type=code&scope=openid+profile+offline_access+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FReleases.Read+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FReleases.Write+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FWatchlist.ReadWrite&nonce=Sj81s2efSJ5Pb-gJTZxkSS8bP_bCbVUdWPjNN9a_IC0&state=93268fb9f27245c4a53f227fb99fcdfb&code_challenge=YlLEHOgZJQXgTG6bFeuS-QHAHI2bTk5QR-UQXN5J5f8&code_challenge_method=S256
+
+Microsoft login page URL: https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/login
+
+callback URL: http://localhost:5173/auth/callback?code=%5BREDACTED%5D&state=93268fb9f27245c4a53f227fb99fcdfb&session_state=%5BREDACTED%5D 
+
+token request body: "method": "POST",
+          "url": "https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/oauth2/v2.0/token",
+          "httpVersion": "HTTP/1.1",
+          URL: grant_type=authorization_code&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&code=%5BREDACTED%5D&code_verifier=%5BREDACTED%5D&client_id=381a27b9-49b8-4b65-825a-d896f65690e2
+
+/api/me response status and body: 
+        "connection": "5173",
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:5173/api/me",
+          "httpVersion": "HTTP/1.1",
+           ...
+          "response": {
+          "status": 200,
+          "statusText": "OK",
+          "httpVersion": "HTTP/1.1",
+          ...
+          Reports role:
+          "cookies": [],
+          "content": {
+            "size": 156,
+            "mimeType": "application/json",
+            "compression": 0,
+            "text": "{\"subject\":\"62ed3f40-0f6e-40a9-822b-aa0fed1242ed\",\"name\":\"Test Reader\",\"roles\":[\"Reader\"],\"scopes\":[\"Releases.Read\",\"Releases.Write\",\"Watchlist.ReadWrite\"]}"
+          },
 ```
 
 ## 4. A deliberate failure (Q3)
