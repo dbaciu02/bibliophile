@@ -26,7 +26,7 @@ psql postgres://app:app@localhost:5433/booktracker -c "DELETE FROM audit_log;"
 `request_id` matches the `X-Request-Id` header in the curl transcript for the
 same request, which ties each audit row to one HTTP call.
 
-## My output (commit `_______`, date `11-14-2026`)
+## My output (commit d818b7831e56b1be66b355ec994f7d4f9b5294a6, date `11-14-2026`)
 
 ```
   SELECT id, at, actor_subject, actor_role, action, entity_type, entity_id,   

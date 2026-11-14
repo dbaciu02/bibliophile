@@ -10,8 +10,9 @@ requires you to explain any of it.
 | 2026-10-22 | Claude | Step 1 skeleton: repo layout, initial reversible migration, `/healthz`, error shape, request ids, release-date normalization + tests, React/TS shell, Entra setup guide | All files in the first commit | _(fill in: e.g. re-ran tests, read the migration line by line, did the hand predictions yourself)_ |
 | 2026-11-02 | Claude | Step 2: Implement Entra ID authentication in the web client | Web client configured with Vite environment variables for Entra ID | _(fill in: e.g. verified login flow, checked network requests, ensured tokens are correctly handled)_ |
 | 2026-11-03 | Claude | Step 3: Implement Entra ID authentication in the API | API configured with environment variables for Entra ID | _(fill in: e.g. verified token validation, checked network requests, ensured correct handling of authentication)_ |
-
-
+| 2026-11-12 | Claude | Step 4: Configure audit logging for API actions | API configured to log audit entries for each action | _(fill in: e.g. verified token validation, checked network requests, ensured correct handling of authentication)_ |
+| 2026-11-13 | Claude | Step 4: Configure audit logging for API actions | API configured to log audit entries for each action | verified correct tokens and request IDs as well as HTTP request linkage |
+| 2026-11-13 | Claude | Step 5: Integrate Google Books API | API configured to use Google Books API key | _(fill in: e.g. verified API requests, checked responses, ensured correct handling of API key)_ |
 ## Challenged AI claims
 
 Record at least one claim from the AI you checked and found wrong or
