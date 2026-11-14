@@ -11,9 +11,13 @@
 #
 # Getting a token: sign in to the app as that user, open DevTools → Console and run
 #   copy(JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage).find(k => k.startsWith("oidc.user:")))).access_token)
-# which copies it to the clipboard. Then in the terminal (input is hidden and
-# not saved in your shell history):
-#   read -rs READER_TOKEN && export READER_TOKEN      # paste, press Enter
+# which copies it to the clipboard. Then in the terminal (macOS):
+#   export READER_TOKEN=$(pbpaste)
+# The token is never shown, and shell history only records "$(pbpaste)".
+# (Don't paste it into `read`: macOS cuts terminal input at ~1024 characters,
+# which is shorter than a token, and the command hangs.)
+# Afterwards clear the clipboard:  echo -n "" | pbcopy
+# Check without revealing it:      echo ${#READER_TOKEN} ${READER_TOKEN:0:3}   (long, eyJ)
 # Tokens expire after about an hour.
 #
 # Without tokens, only the public and 401 cases run; the rest are skipped and
@@ -151,4 +155,36 @@ else
 
   step "DELETE /api/releases/$ID again -> 404" "curl -i -X DELETE ... $BASE/api/releases/$ID"
   run -X DELETE "${C[@]}" "$BASE/api/releases/$ID"
+  # ------------------------------------------------- Google Books (F10, S1)
+  # These call the REAL Google Books API through our server (uses a little quota).
+  step "GET /api/books/search as Curator -> 200, source live (or cache if searched in the last 6 h)" "curl -i -H 'Authorization: Bearer <curator token>' '$BASE/api/books/search?q=dune&maxResults=3'"
+  SEARCH=$(curl -sS -i "${C[@]}" "$BASE/api/books/search?q=dune&maxResults=3")
+  echo "$SEARCH"; echo
+
+  step "Same search again -> 200, source cache (Google not called)" "curl -i ... (same URL)"
+  run "${C[@]}" "$BASE/api/books/search?q=dune&maxResults=3"
+
+  step "GET /api/books/search as Reader -> 403" "curl -i -H 'Authorization: Bearer <reader token>' ..."
+  if [ -n "$READER_TOKEN" ]; then run -H "Authorization: Bearer $READER_TOKEN" "$BASE/api/books/search?q=dune"; else echo "(skipped: no READER_TOKEN)"; fi
+
+  step "GET /api/books/search query too short -> 400" "curl -i ... '$BASE/api/books/search?q=a'"
+  run "${C[@]}" "$BASE/api/books/search?q=a"
+
+  # First result that has a usable date and isn't in the catalog yet.
+  VOLID=$(echo "$SEARCH" | sed -n '/^{/,$p' | node -e '
+    let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
+      try { const r=JSON.parse(s); const v=(r.items||[]).find(i=>i.releaseDate && !i.inCatalog); console.log(v ? v.googleVolumeId : ""); }
+      catch { console.log(""); } });')
+  if [ -n "$VOLID" ]; then
+    step "POST /api/releases/import -> 201 + Location" "curl -i -X POST ... -d '{\"googleVolumeId\":\"$VOLID\"}' $BASE/api/releases/import"
+    run -X POST "${C[@]}" -H "Content-Type: application/json" -d "{\"googleVolumeId\":\"$VOLID\"}" "$BASE/api/releases/import"
+
+    step "POST /api/releases/import same volume -> 409 (Google not called)" "curl -i -X POST ... (same body)"
+    run -X POST "${C[@]}" -H "Content-Type: application/json" -d "{\"googleVolumeId\":\"$VOLID\"}" "$BASE/api/releases/import"
+  else
+    echo; echo "## SKIPPED import: no search result with a usable date that isn't already in the catalog"
+  fi
+
+  step "POST /api/releases/import bad id -> 400" "curl -i -X POST ... -d '{\"googleVolumeId\":\"not a valid id!\"}'"
+  run -X POST "${C[@]}" -H "Content-Type: application/json" -d '{"googleVolumeId":"not a valid id!"}' "$BASE/api/releases/import"
 fi

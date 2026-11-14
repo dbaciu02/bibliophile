@@ -5,7 +5,8 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 3 of 9 — Entra ID login.** See [Build plan](#build-plan).
+**Status: step 4 of 9 — Google Books integration.** See [Build plan](#build-plan) and the
+full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
 
@@ -64,6 +65,8 @@ npm run dev:web      # http://localhost:5173
 | `POST /api/releases` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 409 |
 | `PATCH /api/releases/:id` | Curator (`Releases.Write`) | 200, 400, 401, 403, 404 |
 | `DELETE /api/releases/:id` (soft hide) | Curator (`Releases.Write`) | 204, 400, 401, 403, 404 |
+| `GET /api/books/search?q&maxResults` (Google Books, cached) | Curator (`Releases.Write`) | 200, 400, 401, 403, 429, 503 |
+| `POST /api/releases/import` `{googleVolumeId}` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 404, 409, 429, 503 |
 | `GET /api/me` | Reader or Curator (`Releases.Read`) | 200, 401, 403 |
 | `GET /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 200, 401, 403 |
 | `POST /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 201 + Location, 400, 401, 403, 409 |
@@ -76,6 +79,10 @@ Notes:
   return unfiltered results.
 - Another user's watchlist item returns 404, not 403, so ids can't be probed.
 - Every write saves an audit row in the same transaction (`api/src/audit.ts`).
+- Google Books is only called from the server, through a Postgres cache
+  (searches 6 h, volumes 24 h); when Google is down an expired answer is
+  served with `"source":"stale"`, otherwise 503. Details and evidence:
+  [docs/evidence/google-books.md](docs/evidence/google-books.md).
 
 ## Authentication and roles
 
@@ -128,8 +135,8 @@ the `X-Request-Id` header and the server log:
 
 1. ✅ Skeleton: repo, strict TS, initial reversible migration, `/healthz`, error shape, test command
 2. ✅ API core: releases + watchlist routes, validation, audit log writes, server-side token validation and roles
-3. ✅ (code done, waiting on a real sign-in) Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
-4. 🔶 Google Books integration: timeout, retry, cache, runtime validation, degraded mode
+3. ✅ Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
+4. ✅ Google Books integration: timeout, retry, cache, runtime validation, degraded mode, rate limits on Google-backed routes
 5. Frontend pages with loading / empty / error states
 6. SSE live updates with replay
 7. MCP server and MCP App

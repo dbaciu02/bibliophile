@@ -3,6 +3,7 @@ import type { DbClient } from "./db.js";
 
 export type AuditAction =
   | "release.create"
+  | "release.import"
   | "release.update"
   | "release.hide"
   | "watchlist.add"

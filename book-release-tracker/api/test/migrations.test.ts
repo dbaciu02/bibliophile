@@ -16,7 +16,16 @@ async function tables(): Promise<string[]> {
   return r.rows.map((row) => row.table_name);
 }
 
-const EXPECTED_TABLES = ["audit_log", "authors", "book_authors", "books", "events", "users", "watchlist_items"];
+const EXPECTED_TABLES = [
+  "audit_log",
+  "authors",
+  "book_authors",
+  "books",
+  "events",
+  "google_books_cache",
+  "users",
+  "watchlist_items",
+];
 
 beforeAll(async () => {
   await client.connect();
@@ -33,9 +42,9 @@ describe("initial schema migration", () => {
     expect(await tables()).toEqual([]);
   });
 
-  it("up creates every table", async () => {
+  it("up creates every table, running the migrations in order", async () => {
     const ran = await migrate("up");
-    expect(ran).toEqual(["1761166800000_initial-schema"]);
+    expect(ran).toEqual(["1761166800000_initial-schema", "1763082000000_google-books-cache"]);
     expect(await tables()).toEqual(EXPECTED_TABLES);
   });
 
@@ -89,9 +98,17 @@ describe("initial schema migration", () => {
     });
   });
 
-  it("down removes everything again (reversible)", async () => {
+  it("the newest migration alone can be reverted and re-applied (one step down, one step up)", async () => {
+    expect(await migrate("down", 1)).toEqual(["1763082000000_google-books-cache"]);
+    expect(await tables()).not.toContain("google_books_cache");
+    expect(await tables()).toContain("books"); // the earlier migration is untouched
+    expect(await migrate("up", 1)).toEqual(["1763082000000_google-books-cache"]);
+    expect(await tables()).toContain("google_books_cache");
+  });
+
+  it("down removes everything again (reversible), newest first", async () => {
     const ran = await migrate("down");
-    expect(ran).toEqual(["1761166800000_initial-schema"]);
+    expect(ran).toEqual(["1763082000000_google-books-cache", "1761166800000_initial-schema"]);
     expect(await tables()).toEqual([]);
     const types = await client.query(`SELECT 1 FROM pg_type WHERE typname = 'date_precision'`);
     expect(types.rows).toHaveLength(0);

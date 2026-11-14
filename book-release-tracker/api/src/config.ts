@@ -13,10 +13,18 @@ const ConfigSchema = z
     GIT_SHA: z.string().min(1).default("unknown"),
     ENTRA_TENANT_ID: z.preprocess(emptyToUndefined, z.uuid().optional()),
     ENTRA_API_CLIENT_ID: z.preprocess(emptyToUndefined, z.uuid().optional()),
+    // Optional locally (Google allows a small anonymous quota); required in production.
+    GOOGLE_BOOKS_API_KEY: z.preprocess(emptyToUndefined, z.string().regex(/^[A-Za-z0-9_-]{20,100}$/).optional()),
+    // Only for demos / Game Day: point at something dead to simulate a Google outage.
+    GOOGLE_BOOKS_BASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== "production" || (c.ENTRA_TENANT_ID && c.ENTRA_API_CLIENT_ID), {
     message: "ENTRA_TENANT_ID and ENTRA_API_CLIENT_ID are required in production",
     path: ["ENTRA_TENANT_ID"],
+  })
+  .refine((c) => c.NODE_ENV !== "production" || c.GOOGLE_BOOKS_API_KEY, {
+    message: "GOOGLE_BOOKS_API_KEY is required in production",
+    path: ["GOOGLE_BOOKS_API_KEY"],
   });
 
 export type Config = z.infer<typeof ConfigSchema>;

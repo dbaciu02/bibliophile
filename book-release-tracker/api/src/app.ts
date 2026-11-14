@@ -1,9 +1,13 @@
 import express, { type Express } from "express";
 import type { TokenVerifier } from "./auth.js";
 import type { Db } from "./db.js";
+import { createBooksService, type BooksService } from "./googleBooks/cachedBooks.js";
+import { createGoogleBooksClient } from "./googleBooks/client.js";
 import { errorHandler, notFound } from "./errors.js";
 import { requestId } from "./requestId.js";
+import { booksRouter } from "./routes/books.js";
 import { healthRouter } from "./routes/health.js";
+import { importRouter } from "./routes/import.js";
 import { meRouter } from "./routes/me.js";
 import { releasesRouter } from "./routes/releases.js";
 import { watchlistRouter } from "./routes/watchlist.js";
@@ -12,6 +16,8 @@ export interface AppDeps {
   db: Db;
   gitSha: string;
   verifyToken: TokenVerifier;
+  /** Google Books behind the cache. Tests pass one with a stubbed fetch. */
+  books?: BooksService;
 }
 
 /**
@@ -19,7 +25,8 @@ export interface AppDeps {
  * test database and a test token verifier, so nothing here reads process.env
  * or opens a port.
  */
-export function createApp({ db, gitSha, verifyToken }: AppDeps): Express {
+export function createApp({ db, gitSha, verifyToken, books }: AppDeps): Express {
+  const booksService = books ?? createBooksService(db, createGoogleBooksClient());
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", 1); // behind the CDN: use its X-Forwarded-* for client IP / protocol
@@ -29,10 +36,12 @@ export function createApp({ db, gitSha, verifyToken }: AppDeps): Express {
   app.use(express.json({ limit: "100kb" }));
 
   app.use(healthRouter(db, gitSha));
+  app.use("/api/releases/import", importRouter(db, verifyToken, booksService));
   app.use("/api/releases", releasesRouter(db, verifyToken));
+  app.use("/api/books", booksRouter(db, verifyToken, booksService));
   app.use("/api/me/watchlist", watchlistRouter(db, verifyToken));
   app.use("/api/me", meRouter(verifyToken));
-  // Later steps mount /api/books/search (4) and /api/events (6) here.
+  // Step 6 mounts /api/events here.
 
   app.use(notFound);
   app.use(errorHandler);

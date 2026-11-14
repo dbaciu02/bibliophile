@@ -15,7 +15,7 @@ import { CreateReleaseBody, IdParam, ListReleasesQuery, UpdateReleaseBody } from
  *   PATCH  /api/releases/:id      Curator   200, 400, 401, 403, 404
  *   DELETE /api/releases/:id      Curator   204, 400, 401, 403, 404   (soft hide)
  *
- * Step 4 adds POST /api/releases/import, which fills the body from Google Books.
+ * POST /api/releases/import (fill a release from Google Books) is in routes/import.ts.
  */
 export function releasesRouter(db: Db, verify: TokenVerifier): Router {
   const router = Router();
