@@ -1,0 +1,461 @@
+# curl evidence
+# date:   2026-11-14T00:41:22Z
+# commit: 2dc785ad5ed941c719981248872d1b9c37ad9700
+# base:   http://localhost:3000
+
+
+==================================================================
+## GET /healthz -> 200
+$ curl -i http://localhost:3000/healthz
+
+HTTP/1.1 200 OK
+X-Request-Id: 23e3a64b-fb7a-4bc1-8d9d-bf6767f5002c
+Cache-Control: no-store
+Content-Type: application/json; charset=utf-8
+Content-Length: 40
+ETag: W/"28-St0YxxTNyiFhbWsxkJSRbzstiW0"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"status":"ok","db":"ok","commit":"dev"}
+
+==================================================================
+## GET /api/releases -> 200
+$ curl -i 'http://localhost:3000/api/releases?limit=5'
+
+HTTP/1.1 200 OK
+X-Request-Id: 321edd37-f641-41ac-9c1e-e20c91735b8e
+Content-Type: application/json; charset=utf-8
+Content-Length: 51
+ETag: W/"33-yb/QCt1PTStLPOC9W+FuB8Id0yw"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"items":[],"nextOffset":null,"limit":5,"offset":0}
+
+==================================================================
+## GET /api/releases with filters -> 200
+$ curl -i 'http://localhost:3000/api/releases?from=2026-11-01&to=2026-12-31&q=the'
+
+HTTP/1.1 200 OK
+X-Request-Id: 250799e1-b023-461e-9e23-fefee22596f5
+Content-Type: application/json; charset=utf-8
+Content-Length: 52
+ETag: W/"34-rxEb4zWY6AmyklKpLCUuDEw5IVo"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"items":[],"nextOffset":null,"limit":50,"offset":0}
+
+==================================================================
+## GET /api/releases unknown parameter -> 400
+$ curl -i 'http://localhost:3000/api/releases?form=2026-11-01'
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: 1f37abed-b369-4403-8a90-58b2ccd30896
+Content-Type: application/json; charset=utf-8
+Content-Length: 190
+ETag: W/"be-+7foiDKYluOU0EvxKcYjFNT0mFk"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"1f37abed-b369-4403-8a90-58b2ccd30896","details":[{"path":"","message":"Unrecognized key: \"form\""}]}}
+
+==================================================================
+## GET /api/releases impossible date -> 400
+$ curl -i 'http://localhost:3000/api/releases?from=2026-02-30'
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: b610862c-85e7-45c3-895c-0240374a1184
+Content-Type: application/json; charset=utf-8
+Content-Length: 184
+ETag: W/"b8-SYt/XsjpfoMl6WiWg5sogkm0cQQ"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"b610862c-85e7-45c3-895c-0240374a1184","details":[{"path":"from","message":"Invalid ISO date"}]}}
+
+==================================================================
+## GET /api/releases/:id missing -> 404
+$ curl -i http://localhost:3000/api/releases/999999
+
+HTTP/1.1 404 Not Found
+X-Request-Id: f2498e30-461e-43e4-afda-5f6bc4669fd8
+Content-Type: application/json; charset=utf-8
+Content-Length: 118
+ETag: W/"76-qgjqnPpbSPf9//4IxpFMzGWlmpY"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"not_found","message":"Release 999999 not found","requestId":"f2498e30-461e-43e4-afda-5f6bc4669fd8"}}
+
+==================================================================
+## GET /api/releases/:id not a number -> 400
+$ curl -i http://localhost:3000/api/releases/abc
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: d5c10bd5-1f69-4d24-8fd0-36eab5c69566
+Content-Type: application/json; charset=utf-8
+Content-Length: 210
+ETag: W/"d2-/9l173LI9yJXF8AqDTrzB43DTwg"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"d5c10bd5-1f69-4d24-8fd0-36eab5c69566","details":[{"path":"id","message":"Invalid input: expected number, received NaN"}]}}
+
+==================================================================
+## Unknown route -> 404
+$ curl -i http://localhost:3000/api/nope
+
+HTTP/1.1 404 Not Found
+X-Request-Id: 90fe6670-a9c7-4886-b451-48626094a7b1
+Content-Type: application/json; charset=utf-8
+Content-Length: 120
+ETag: W/"78-OTSUfUNqyI0vkSu0A3WM9YMVc4M"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"not_found","message":"No route for GET /api/nope","requestId":"90fe6670-a9c7-4886-b451-48626094a7b1"}}
+
+==================================================================
+## POST /api/releases anonymous -> 401
+$ curl -i -X POST -H 'Content-Type: application/json' -d '{...}' http://localhost:3000/api/releases
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: 92d029b2-3f87-4a90-92c9-b47f4822e9dd
+WWW-Authenticate: Bearer realm="api"
+Content-Type: application/json; charset=utf-8
+Content-Length: 139
+ETag: W/"8b-5xkxMt4qkqSLsdc6Vbd7JNNcFu0"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"unauthenticated","message":"A valid bearer access token is required","requestId":"92d029b2-3f87-4a90-92c9-b47f4822e9dd"}}
+
+==================================================================
+## GET /api/me anonymous -> 401
+$ curl -i http://localhost:3000/api/me
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: 79024646-dc2f-44d3-8882-4201e7155ddb
+WWW-Authenticate: Bearer realm="api"
+Content-Type: application/json; charset=utf-8
+Content-Length: 139
+ETag: W/"8b-WOKHKw3FuT6CED/wIRNii7HIpzg"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"unauthenticated","message":"A valid bearer access token is required","requestId":"79024646-dc2f-44d3-8882-4201e7155ddb"}}
+
+==================================================================
+## GET /api/me/watchlist anonymous -> 401
+$ curl -i http://localhost:3000/api/me/watchlist
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: 2211aacb-a5ec-4432-a7b4-c13c1205ebd6
+WWW-Authenticate: Bearer realm="api"
+Content-Type: application/json; charset=utf-8
+Content-Length: 139
+ETag: W/"8b-Is3qMS+AI1HAyDbWJpYqCOjoUM0"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"unauthenticated","message":"A valid bearer access token is required","requestId":"2211aacb-a5ec-4432-a7b4-c13c1205ebd6"}}
+
+==================================================================
+## GET /api/me/watchlist invalid token -> 401
+$ curl -i -H 'Authorization: Bearer abc.def.ghi' http://localhost:3000/api/me/watchlist
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: bcb21c99-8e02-4d8c-a76f-375beda0e75b
+WWW-Authenticate: Bearer realm="api", error="invalid_token"
+Content-Type: application/json; charset=utf-8
+Content-Length: 138
+ETag: W/"8a-UKsDtDGk87nNWEtBQp+qN4DUVWM"
+Date: Sat, 14 Nov 2026 00:41:22 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"unauthenticated","message":"The access token is invalid or expired","requestId":"bcb21c99-8e02-4d8c-a76f-375beda0e75b"}}
+
+==================================================================
+## POST /api/releases as Reader -> 403
+$ curl -i -X POST -H 'Authorization: Bearer <reader token>' ... http://localhost:3000/api/releases
+
+HTTP/1.1 403 Forbidden
+X-Request-Id: c79ee282-4eb8-4f48-9c4c-f5ba4cbc65cd
+Content-Type: application/json; charset=utf-8
+Content-Length: 139
+ETag: W/"8b-sflcViwofyoK//CMg5cQnXmBC3M"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"forbidden","message":"This action needs one of these roles: Curator","requestId":"c79ee282-4eb8-4f48-9c4c-f5ba4cbc65cd"}}
+
+==================================================================
+## GET /api/me -> 200 (identity and role from the validated token)
+$ curl -i -H 'Authorization: Bearer <reader token>' http://localhost:3000/api/me
+
+HTTP/1.1 200 OK
+X-Request-Id: 9ffa6c8b-600b-4c59-a468-e677471032a4
+Cache-Control: private, no-store
+Content-Type: application/json; charset=utf-8
+Content-Length: 156
+ETag: W/"9c-T2oKkhzaI5izP5BvpFC2AX4f7T0"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"subject":"62ed3f40-0f6e-40a9-822b-aa0fed1242ed","name":"Test Reader","roles":["Reader"],"scopes":["Releases.Read","Releases.Write","Watchlist.ReadWrite"]}
+
+==================================================================
+## GET /api/me/watchlist -> 200
+$ curl -i -H 'Authorization: Bearer <reader token>' http://localhost:3000/api/me/watchlist
+
+HTTP/1.1 200 OK
+X-Request-Id: f46bb643-61dc-4e44-906c-918be49a4d14
+Cache-Control: private, no-store
+Content-Type: application/json; charset=utf-8
+Content-Length: 12
+ETag: W/"c-F6g7sByJuuOcYYkgTnzj94yg+ZE"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"items":[]}
+
+==================================================================
+## POST /api/me/watchlist -> 201 + Location
+$ curl -i -X POST ... -d '{"authorName":"Evidence Author evidence1794616882"}'
+
+HTTP/1.1 201 Created
+X-Request-Id: e0fc8164-5503-42d0-b5e9-6aa301f0df00
+Cache-Control: private, no-store
+Location: /api/me/watchlist/3
+Content-Type: application/json; charset=utf-8
+Content-Length: 111
+ETag: W/"6f-gDPxXVVLzc1DIhIx1z4YvccRvOM"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":3,"author":"Evidence Author evidence1794616882","upcomingCount":0,"createdAt":"2026-11-14T00:41:23.607Z"}
+
+
+==================================================================
+## POST /api/me/watchlist same author again -> 409
+$ curl -i -X POST ... (same body)
+
+HTTP/1.1 409 Conflict
+X-Request-Id: 7bfcdc47-7d55-4abf-bfb6-907a023e4224
+Content-Type: application/json; charset=utf-8
+Content-Length: 152
+ETag: W/"98-kex+VwGsFUuapMX9jARRfhghDIs"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"conflict","message":"You are already watching Evidence Author evidence1794616882","requestId":"7bfcdc47-7d55-4abf-bfb6-907a023e4224"}}
+
+==================================================================
+## POST /api/me/watchlist blank name -> 400
+$ curl -i -X POST ... -d '{"authorName":"  "}'
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: 76f3dea5-940c-4d63-b74a-e541dc77fb3f
+Content-Type: application/json; charset=utf-8
+Content-Length: 223
+ETag: W/"df-LvnwaITqPjqFoqa/oedhyfsHfOQ"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"76f3dea5-940c-4d63-b74a-e541dc77fb3f","details":[{"path":"authorName","message":"Too small: expected string to have >=1 characters"}]}}
+
+==================================================================
+## DELETE /api/me/watchlist/3 -> 204
+$ curl -i -X DELETE ... http://localhost:3000/api/me/watchlist/3
+
+HTTP/1.1 204 No Content
+X-Request-Id: 645f8a23-5edb-445d-b04a-bfb0dfab2af8
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+
+==================================================================
+## DELETE /api/me/watchlist/3 again -> 404
+$ curl -i -X DELETE ... http://localhost:3000/api/me/watchlist/3
+
+HTTP/1.1 404 Not Found
+X-Request-Id: d7407bd9-f6ca-4857-afc3-cc22497421f8
+Content-Type: application/json; charset=utf-8
+Content-Length: 120
+ETag: W/"78-R7Dlx+9Ak3bndMXjPRaxZ5hOocw"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"not_found","message":"Watchlist item 3 not found","requestId":"d7407bd9-f6ca-4857-afc3-cc22497421f8"}}
+
+==================================================================
+## POST /api/releases as Curator -> 201 + Location
+$ curl -i -X POST -H 'Authorization: Bearer <curator token>' ... http://localhost:3000/api/releases
+
+HTTP/1.1 201 Created
+X-Request-Id: 2a14dff1-0bee-49bf-b5c5-6f72bc737d55
+Location: /api/releases/3
+Content-Type: application/json; charset=utf-8
+Content-Length: 235
+ETag: W/"eb-NPqMWpI4C+tMPgo/xwVHUkQuIM4"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":3,"googleVolumeId":"evidence1794616882","title":"Evidence Book","authors":["Evidence Author"],"releaseDate":"2026-12-01","datePrecision":"month","categories":["Fiction"],"thumbnailUrl":null,"updatedAt":"2026-11-14T00:41:23.828Z"}
+
+
+==================================================================
+## POST /api/releases same volume -> 409
+$ curl -i -X POST ... (same body)
+
+HTTP/1.1 409 Conflict
+X-Request-Id: 9867a693-5313-4ec6-961f-5d3178f19fde
+Content-Type: application/json; charset=utf-8
+Content-Length: 144
+ETag: W/"90-fyOOl52nGBWMaj7/TQ86NpNL2Wg"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"conflict","message":"Volume evidence1794616882 is already in the catalog","requestId":"9867a693-5313-4ec6-961f-5d3178f19fde"}}
+
+==================================================================
+## POST /api/releases invalid body -> 400
+$ curl -i -X POST ... -d '{"title":"","publishedDate":"2026-02-30"}'
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: dd9bf659-08f3-4d62-9542-a2cacacfaa06
+Content-Type: application/json; charset=utf-8
+Content-Length: 485
+ETag: W/"1e5-iE9IyKSBs6BYiyKiFbABBs45L8w"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"dd9bf659-08f3-4d62-9542-a2cacacfaa06","details":[{"path":"googleVolumeId","message":"Invalid input: expected string, received undefined"},{"path":"title","message":"Too small: expected string to have >=1 characters"},{"path":"publishedDate","message":"Must be \"YYYY\", \"YYYY-MM\" or a real \"YYYY-MM-DD\" date"},{"path":"authors","message":"Invalid input: expected array, received undefined"}]}}
+
+==================================================================
+## POST /api/releases malformed JSON -> 400
+$ curl -i -X POST ... -d '{"title": '
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: 76f568fa-7c64-4f9c-bac4-3f99dae360ed
+Content-Type: application/json; charset=utf-8
+Content-Length: 127
+ETag: W/"7f-i8BmYW7egmGbtWUwH9PZfsW8S5o"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"invalid_json","message":"Request body is not valid JSON","requestId":"76f568fa-7c64-4f9c-bac4-3f99dae360ed"}}
+
+==================================================================
+## GET /api/releases/3 -> 200
+$ curl -i http://localhost:3000/api/releases/3
+
+HTTP/1.1 200 OK
+X-Request-Id: 9ce2703b-81e8-48f9-94ed-21482e566543
+Content-Type: application/json; charset=utf-8
+Content-Length: 235
+ETag: W/"eb-NPqMWpI4C+tMPgo/xwVHUkQuIM4"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":3,"googleVolumeId":"evidence1794616882","title":"Evidence Book","authors":["Evidence Author"],"releaseDate":"2026-12-01","datePrecision":"month","categories":["Fiction"],"thumbnailUrl":null,"updatedAt":"2026-11-14T00:41:23.828Z"}
+
+==================================================================
+## PATCH /api/releases/3 -> 200
+$ curl -i -X PATCH ... -d '{"publishedDate":"2026-12-15"}'
+
+HTTP/1.1 200 OK
+X-Request-Id: db3c37de-4a43-4e41-b066-e00a2624bbf4
+Content-Type: application/json; charset=utf-8
+Content-Length: 233
+ETag: W/"e9-LJSDUMZBjXc8nAm1UcBQv1gDg68"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":3,"googleVolumeId":"evidence1794616882","title":"Evidence Book","authors":["Evidence Author"],"releaseDate":"2026-12-15","datePrecision":"day","categories":["Fiction"],"thumbnailUrl":null,"updatedAt":"2026-11-14T00:41:24.011Z"}
+
+==================================================================
+## PATCH /api/releases/3 empty body -> 400
+$ curl -i -X PATCH ... -d '{}'
+
+HTTP/1.1 400 Bad Request
+X-Request-Id: 2cd2ee25-e182-4062-9659-4b2206eacdfd
+Content-Type: application/json; charset=utf-8
+Content-Length: 200
+ETag: W/"c8-gTMJf3LgW9t0C7kGAMYdp7SdAQQ"
+Date: Sat, 14 Nov 2026 00:41:23 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"validation_failed","message":"Request failed validation","requestId":"2cd2ee25-e182-4062-9659-4b2206eacdfd","details":[{"path":"","message":"Provide at least one field to change"}]}}
+
+==================================================================
+## PATCH /api/releases/999999 -> 404
+$ curl -i -X PATCH ... http://localhost:3000/api/releases/999999
+
+HTTP/1.1 404 Not Found
+X-Request-Id: d0d2a713-d1b3-4fd9-9d4f-e1ea3927b448
+Content-Type: application/json; charset=utf-8
+Content-Length: 118
+ETag: W/"76-NDAgkWXDsS2oiXOWKJZnbzgc24U"
+Date: Sat, 14 Nov 2026 00:41:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"not_found","message":"Release 999999 not found","requestId":"d0d2a713-d1b3-4fd9-9d4f-e1ea3927b448"}}
+
+==================================================================
+## DELETE /api/releases/3 -> 204
+$ curl -i -X DELETE ... http://localhost:3000/api/releases/3
+
+HTTP/1.1 204 No Content
+X-Request-Id: 41a7423a-b3cf-436c-9cbe-af93147f9407
+Date: Sat, 14 Nov 2026 00:41:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+
+
+==================================================================
+## DELETE /api/releases/3 again -> 404
+$ curl -i -X DELETE ... http://localhost:3000/api/releases/3
+
+HTTP/1.1 404 Not Found
+X-Request-Id: 932cba0e-7650-4b4a-9c5d-4178f21ee560
+Content-Type: application/json; charset=utf-8
+Content-Length: 113
+ETag: W/"71-fJzADwAdo6i3LVYcxWTBvs34TXk"
+Date: Sat, 14 Nov 2026 00:41:24 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":{"code":"not_found","message":"Release 3 not found","requestId":"932cba0e-7650-4b4a-9c5d-4178f21ee560"}}

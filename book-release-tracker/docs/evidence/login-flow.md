@@ -86,15 +86,23 @@ token request body: "method": "POST",
 
 ## 4. A deliberate failure (Q3)
 
-Show that `state` is enforced: after step 2 redirects you to Microsoft, open
-DevTools → Application → Session storage → `localhost:5173`, delete the
-`oidc.<state value>` entry, then finish signing in. The app should show
-**"Sign-in failed: No matching state found in storage"** and stay signed out.
-Screenshot it (nothing secret is on screen).
+Show that state is enforced by sending back a login response the app never started:
+
+In a private window, open the app and click Sign in with Microsoft.
+On Microsoft's sign-in page, edit the state= value in the address bar (e.g. replace its first 4 characters with xxxx) and press Enter.
+Sign in as Test Reader.
+The app should show "Sign-in failed: No matching state found in storage" and stay signed out.
+
+Screenshot the edited address bar and the error (nothing secret is on screen).
+
+(Deleting the stored state in DevTools doesn't work as a test: while you're on Microsoft's page, DevTools only shows Microsoft's storage, and the app deletes the entry as soon as you're back.)
 
 ## 5. Interpretation
+URL: https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/oauth2/v2.0/authorize?client_id=381a27b9-49b8-4b65-825a-d896f65690e2&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&response_type=code&scope=openid+profile+offline_access+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FReleases.Read+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FReleases.Write+api%3A%2F%2Fc815aa80-06ef-4e34-90d6-8e721dad1bb3%2FWatchlist.ReadWrite&nonce=xX_KtA8Gfkf0sc2UhFT2obITzz5XBtJb-tX5DyayaGQ&state=xxxxe1a7c6745af93f2dfe13e1dc1c4&code_challenge=xdLKkgUeu7JD1xwNGPlKLZP-2p-tcBnXjE_UKnZxmbQ&code_challenge_method=S256&sso_reload=true 
+Screenshot:
+![A deliberate failure](./DeliberateStateFailure.png)
 
-_(In your own words.)_
+I deliberately modified the state parameter in the URL to simulate a mismatch. I changed the first 4 letter in the state value to xxxx. By doing this, the app could not find a matching state in its storage. As a result, it displayed the error message "Sign-in failed: No matching state found in storage." This demonstrated that the app correctly checks the state parameter and does not accept a response with an unexpected state. This deliberate mismatch triggered the app's error handling, confirming that the state is enforced and prevents replay attacks.
 
 ## Challenged claim worth recording
 
