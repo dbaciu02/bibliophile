@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { apiError, json, mockApi, renderApp } from "../test/helpers";
@@ -19,7 +19,14 @@ const candidate = (id: string, extra = {}) => ({
   inCatalog: false,
   ...extra,
 });
-const search = (items: unknown[], source = "live") => ({ items, totalItems: items.length, source, fetchedAt: "2026-11-16T23:31:05.666Z" });
+const search = (items: unknown[], source = "live", hiddenByDateFilter = 0) => ({
+  items,
+  totalItems: items.length + hiddenByDateFilter,
+  hiddenByDateFilter,
+  googleQuery: "dune",
+  source,
+  fetchedAt: "2026-11-16T23:31:05.666Z",
+});
 
 describe("CuratePage", () => {
   it("a Reader is told the page is for curators (the API would 403 anyway)", async () => {
@@ -69,5 +76,70 @@ describe("CuratePage", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Import Book v1" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Too many requests");
     expect(screen.getByRole("button", { name: "Import Book v1" })).toBeEnabled();
+  });
+});
+
+describe("CuratePage — search form fields", () => {
+  it("the filled-in fields go into the URL and the API request; empty ones are left out", async () => {
+    const calls = mockApi((url) => (url === "/api/me" ? json(curator) : json(search([candidate("v1")]))));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate" });
+
+    await userEvent.type(await screen.findByLabelText("Author"), "Frank Herbert");
+    await userEvent.type(screen.getByLabelText("Subject / category"), "Fiction");
+    await userEvent.selectOptions(screen.getByLabelText("Year"), String(new Date().getFullYear() + 1));
+    await userEvent.click(screen.getByLabelText("Upcoming only"));
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "newest");
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    await waitFor(() => expect(calls.some((c) => c.url.startsWith("/api/books/search"))).toBe(true));
+    const sent = new URL(calls.find((c) => c.url.startsWith("/api/books/search"))?.url ?? "", "http://x").searchParams;
+    expect(Object.fromEntries(sent)).toEqual({
+      author: "Frank Herbert",
+      subject: "Fiction",
+      year: String(new Date().getFullYear() + 1),
+      upcomingOnly: "true",
+      orderBy: "newest",
+      maxResults: "20",
+    });
+    expect(window.location.pathname + window.location.search).toBe(
+      `/curate?author=Frank+Herbert&subject=Fiction&year=${new Date().getFullYear() + 1}&upcomingOnly=true&orderBy=newest`,
+    );
+  });
+
+  it("a year alone isn't a search: explains why and calls nothing", async () => {
+    const calls = mockApi(() => json(curator));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate" });
+    await userEvent.selectOptions(await screen.findByLabelText("Year"), String(new Date().getFullYear()));
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Google can’t search by year alone");
+    expect(calls.filter((c) => c.url.startsWith("/api/books/search"))).toHaveLength(0);
+  });
+
+  it("a shared link fills the form back in", async () => {
+    mockApi((url) => (url === "/api/me" ? json(curator) : json(search([]))));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate?title=dune&isbn=9780441013593&upcomingOnly=true" });
+    expect(await screen.findByLabelText("Title")).toHaveValue("dune");
+    expect(screen.getByLabelText("ISBN")).toHaveValue("9780441013593"); // "More fields" opens itself
+    expect(screen.getByLabelText("Upcoming only")).toBeChecked();
+  });
+
+  it("says how many results the date filter hid", async () => {
+    mockApi((url) => (url === "/api/me" ? json(curator) : json(search([candidate("v1")], "live", 7))));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate?q=dune&year=2027" });
+    expect(await screen.findByText(/7 hidden by the date filter/)).toBeInTheDocument();
+  });
+
+  it("everything hidden by the date filter: the empty message says so", async () => {
+    mockApi((url) => (url === "/api/me" ? json(curator) : json(search([], "live", 12))));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate?q=dune&upcomingOnly=true" });
+    expect(await screen.findByText(/none matched the year \/ upcoming filter/)).toBeInTheDocument();
+  });
+
+  it("Clear empties the form and the URL", async () => {
+    mockApi((url) => (url === "/api/me" ? json(curator) : json(search([]))));
+    renderApp(<CuratePage />, { signedIn: true, path: "/curate?author=Ana" });
+    await userEvent.click(await screen.findByRole("button", { name: "Clear" }));
+    expect(window.location.search).toBe("");
+    expect(screen.getByLabelText("Author")).toHaveValue("");
   });
 });

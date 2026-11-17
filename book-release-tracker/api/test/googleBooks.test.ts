@@ -331,3 +331,89 @@ describe("GET /api/books/search and POST /api/releases/import", () => {
     expect((await request(app).post("/api/releases/import").set(reader).send({ googleVolumeId: "imp1" })).status).toBe(403);
   });
 });
+
+// ------------------------------------------------- search fields and date filters
+describe("GET /api/books/search — field search, sort and date filters", () => {
+  let issuer: Awaited<ReturnType<typeof createTestIssuer>>;
+  let curator: Record<string, string>;
+  beforeAll(async () => {
+    issuer = await createTestIssuer();
+    curator = bearer(await issuer.sign(CURATOR));
+  });
+  beforeEach(resetDb);
+
+  function appWith(...script: Behaviour[]) {
+    const { c, stub } = client(script);
+    const app = createApp({ db, gitSha: "test", verifyToken: issuer.verifier, books: createBooksService(db, c) });
+    return { app, stub };
+  }
+  const sentQuery = (url: string | undefined) => new URL(url ?? "").searchParams;
+
+  it("builds Google's field syntax from the separate inputs, and passes the sort order", async () => {
+    const { app, stub } = appWith({ ok: searchResult() });
+    const res = await request(app)
+      .get("/api/books/search")
+      .query({ title: "dune", author: 'Frank "the" Herbert', subject: "Science Fiction", orderBy: "newest" })
+      .set(curator);
+    expect(res.status).toBe(200);
+    expect(res.body.googleQuery).toBe('intitle:"dune" inauthor:"Frank the Herbert" subject:"Science Fiction"');
+    const sent = sentQuery(stub.calls[0]);
+    expect(sent.get("q")).toBe(res.body.googleQuery); // quotes typed by the user are stripped
+    expect(sent.get("orderBy")).toBe("newest");
+  });
+
+  it("ISBN with hyphens is accepted and sent as digits", async () => {
+    const { app, stub } = appWith({ ok: searchResult() });
+    await request(app).get("/api/books/search").query({ isbn: "978-0-441-01359-3" }).set(curator).expect(200);
+    expect(sentQuery(stub.calls[0]).get("q")).toBe("isbn:9780441013593");
+  });
+
+  it.each([
+    ["no search field at all", {}],
+    ["only a year (Google can't search by date alone)", { year: "2027" }],
+    ["a bad ISBN", { isbn: "12345" }],
+    ["maxResults over Google's limit", { q: "dune", maxResults: "41" }],
+    ["an unknown sort", { q: "dune", orderBy: "oldest" }],
+  ])("400 for %s, without calling Google", async (_label, query) => {
+    const { app, stub } = appWith({ ok: searchResult() });
+    const res = await request(app).get("/api/books/search").query(query).set(curator);
+    expect(res.status).toBe(400);
+    expect(stub.calls).toHaveLength(0);
+  });
+
+  it("year filter keeps only that year (any precision), drops undated books, and reports how many it hid", async () => {
+    const { app } = appWith({
+      ok: searchResult(
+        volume("y1", { publishedDate: "2027-03-01" }),
+        volume("y2", { publishedDate: "2027" }),
+        volume("y3", { publishedDate: "2026-12-31" }),
+        volume("y4", { publishedDate: undefined }),
+      ),
+    });
+    const res = await request(app).get("/api/books/search").query({ q: "synthetic", year: "2027" }).set(curator);
+    expect(res.body.items.map((i: { googleVolumeId: string }) => i.googleVolumeId)).toEqual(["y1", "y2"]);
+    expect(res.body.hiddenByDateFilter).toBe(2);
+  });
+
+  it("upcomingOnly keeps books whose release period hasn't ended yet", async () => {
+    const { app } = appWith({
+      ok: searchResult(
+        volume("u1", { publishedDate: "2099-01-01" }),
+        volume("u2", { publishedDate: "2001-05" }),
+        volume("u3", { publishedDate: undefined }),
+      ),
+    });
+    const res = await request(app).get("/api/books/search").query({ author: "Ana", upcomingOnly: "true" }).set(curator);
+    expect(res.body.items.map((i: { googleVolumeId: string }) => i.googleVolumeId)).toEqual(["u1"]);
+    expect(res.body.hiddenByDateFilter).toBe(2);
+  });
+
+  it("the date filters don't change what's cached: same Google query, different year -> one Google call", async () => {
+    const { app, stub } = appWith({ ok: searchResult(volume("c1", { publishedDate: "2027" })) });
+    await request(app).get("/api/books/search").query({ q: "dune", year: "2027" }).set(curator).expect(200);
+    const res = await request(app).get("/api/books/search").query({ q: "dune", year: "2028" }).set(curator);
+    expect(res.body.source).toBe("cache");
+    expect(res.body.items).toEqual([]);
+    expect(stub.calls).toHaveLength(1);
+  });
+});

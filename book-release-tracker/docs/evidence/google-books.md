@@ -12,6 +12,7 @@ runtime-validated response, and graceful degradation when Google is down.
 | Cache that respects limits | Postgres `google_books_cache`; searches 6 h, volumes 24 h. Default quota ≈ 1,000 requests/day/project. Duplicate imports are rejected before calling Google | "second identical search… Google called once", "after the TTL expires…", "import the same volume twice…" |
 | Runtime-validated response | zod schemas (`schema.ts`); bad shape or non-JSON is treated as an outage | "runtime validation: …" (2 tests) |
 | Graceful degradation | Expired cache served as `source: "stale"`; otherwise 503 `upstream_unavailable` in the standard error shape; circuit breaker stops calling a dead Google for 30 s | "Google DOWN + expired cache…", "Google DOWN + nothing cached…", "search with Google DOWN… -> 503", "circuit breaker…" |
+| Field search and date filters | `googleBooks/query.ts` builds `intitle:` / `inauthor:` / `subject:` / `inpublisher:` / `isbn:`; year and upcoming filtering done by our API (Google has no date filter) | "builds Google's field syntax…", "year filter keeps only that year…", "the date filters don't change what's cached…" |
 | Rate limiting (S1) | 30 searches / 20 imports per minute per user, 429 + `Retry-After` | "search is rate limited: the 31st request…" |
 
 ## 1. Test with the provider stubbed down (the proof the spec asks for)
@@ -111,9 +112,8 @@ stderr | test/googleBooks.test.ts > GET /api/books/search and POST /api/releases
       Tests  33 passed (33)
    Start at  16:38:12
    Duration  4.14s (tests 89%, import 9%, transform 1%)
-
-
 ```
+
 
 ## 2. Deliberate failure: Google goes down (Q3, and a good Game Day)
 
@@ -130,6 +130,7 @@ stderr | test/googleBooks.test.ts > GET /api/books/search and POST /api/releases
    with the reason.
 6. Comment `GOOGLE_BOOKS_BASE_URL` out again and restart.
 
+Paste steps 4 and 5 (commit `dbbb50edc1b9bdb3e74d932d79d573b6ee185c5a`, date `11-26-2026`):
 
 ```
 (base) dorabaciu@Doras-MacBook-Pro api % curl -s -H "Authorization: Bearer $CURATOR_TOKEN" "localhost:3000/api/books/search?q=dune&maxResults=3"
@@ -139,9 +140,5 @@ stderr | test/googleBooks.test.ts > GET /api/books/search and POST /api/releases
 {"error":{"code":"upstream_unavailable","message":"Google Books is unavailable right now and nothing is cached for this request. Try again later.","requestId":"ebe69214-25fd-4776-85d5-843a02f0d9cc"}}% 
 ```
 
-
-(commit `dbbb50edc1b9bdb3e74d932d79d573b6ee185c5a`, date for both parts `11-26-2026`)
-
-## 4. Interpretation
-
+## 3. Interpretation
 For the first search (`q=dune`), even though Google is down, the API returns the cached result with `"source":"stale"`. This shows that the caching mechanism works and provides users with data using the cache even when the upstream service is unavailable. When I changed the `GOOGLE_BOOKS_BASE_URL` to the deliberate failure URL, the API could not reach Google and relied on the cache. For the second search (`q=neverbefore`), since there is no cached result and Google is down, the API returns a `503` with `upstream_unavailable`. This demonstrates that the API correctly handles the case where neither the cache nor the upstream service can provide the requested data as expected. After changing the `GOOGLE_BOOKS_BASE_URL` back to its normal value and restarting, the API can fetch fresh data from Google again. 

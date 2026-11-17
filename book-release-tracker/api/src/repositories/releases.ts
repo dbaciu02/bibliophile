@@ -92,10 +92,18 @@ export async function listReleases(
   }
   if (q.to) where.push(`b.published_date <= ${param(q.to)}::date`);
   if (q.q) where.push(`b.title ILIKE '%' || ${param(likeLiteral(q.q))} || '%'`);
-  if (q.category) where.push(`${param(q.category)} = ANY (b.categories)`);
+  if (q.category) {
+    // Case-insensitive, partial: "fiction" matches "Fiction" and "Young Adult Fiction".
+    where.push(`EXISTS (SELECT 1 FROM unnest(b.categories) AS c(name)
+                         WHERE c.name ILIKE '%' || ${param(likeLiteral(q.category))} || '%')`);
+  }
   if (q.author) {
+    // Every word typed must appear in ONE author's name, in any order and case:
+    // "Maas", "sarah maas" and "J. Maas" all match "Sarah J. Maas".
+    const words = q.author.split(/\s+/).filter(Boolean).slice(0, 10);
+    const conditions = words.map((w) => `a.name ILIKE '%' || ${param(likeLiteral(w))} || '%'`).join(" AND ");
     where.push(`EXISTS (SELECT 1 FROM book_authors ba JOIN authors a ON a.id = ba.author_id
-                         WHERE ba.book_id = b.id AND a.name ILIKE ${param(likeLiteral(q.author))})`);
+                         WHERE ba.book_id = b.id AND ${conditions})`);
   }
 
   // Fetch one extra row to know whether there is a next page.

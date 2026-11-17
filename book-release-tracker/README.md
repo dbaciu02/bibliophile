@@ -65,7 +65,7 @@ npm run dev:web      # http://localhost:5173
 | `POST /api/releases` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 409 |
 | `PATCH /api/releases/:id` | Curator (`Releases.Write`) | 200, 400, 401, 403, 404 |
 | `DELETE /api/releases/:id` (soft hide) | Curator (`Releases.Write`) | 204, 400, 401, 403, 404 |
-| `GET /api/books/search?q&maxResults` (Google Books, cached) | Curator (`Releases.Write`) | 200, 400, 401, 403, 429, 503 |
+| `GET /api/books/search?q&title&author&subject&publisher&isbn&orderBy&year&upcomingOnly&maxResults` (Google Books, cached) | Curator (`Releases.Write`) | 200, 400, 401, 403, 429, 503 |
 | `POST /api/releases/import` `{googleVolumeId}` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 404, 409, 429, 503 |
 | `GET /api/me` | Reader or Curator (`Releases.Read`) | 200, 401, 403 |
 | `GET /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 200, 401, 403 |
@@ -73,6 +73,9 @@ npm run dev:web      # http://localhost:5173
 | `DELETE /api/me/watchlist/:id` | Reader or Curator (`Watchlist.ReadWrite`) | 204, 400, 401, 403, 404 |
 
 Notes:
+- `q` (title) and `category` match part of the text, ignoring capitals;
+  `author` matches when every word typed appears in one author's name
+  (`Maas` and `sarah maas` both find "Sarah J. Maas").
 - `from`/`to` match by **overlap**: a release dated only "2026-11" appears for
   `from=2026-11-20`, because it may still come out that month.
 - Unknown query parameters or body fields are a 400, so typos don't silently
@@ -81,7 +84,9 @@ Notes:
 - Every write saves an audit row in the same transaction (`api/src/audit.ts`).
 - Google Books is only called from the server, through a Postgres cache
   (searches 6 h, volumes 24 h); when Google is down an expired answer is
-  served with `"source":"stale"`, otherwise 503. Details and evidence:
+  served with `"source":"stale"`, otherwise 503. Google can't filter by
+  date, so `year` and `upcomingOnly` are applied by our API to the results
+  Google returns (`hiddenByDateFilter` says how many were dropped). Details and evidence:
   [docs/evidence/google-books.md](docs/evidence/google-books.md).
 
 ## Authentication and roles
@@ -104,9 +109,9 @@ with a local test key and the real verification code checks them.
 
 | Path | Who | What |
 | --- | --- | --- |
-| `/` | everyone | Upcoming releases grouped by month; search by title, author, category, date range. Filters live in the URL, so a search can be bookmarked |
+| `/` | everyone | Upcoming releases grouped by month (tick "Include past releases" for books already out); search by title, author, category, date range. Filters live in the URL, so a search can be bookmarked |
 | `/watchlist` | signed in | Follow authors; each shows how many upcoming releases they have |
-| `/curate` | Curator | Search Google Books and import volumes into the catalog |
+| `/curate` | Curator | Search Google Books by keywords, title, author, subject, publisher or ISBN; filter by year or upcoming only; sort by relevance or newest; import into the catalog |
 
 Every remote call has loading, empty and error states
 ([docs/evidence/frontend-states.md](docs/evidence/frontend-states.md)).

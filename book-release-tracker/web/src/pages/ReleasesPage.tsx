@@ -9,6 +9,10 @@ import { useRemote } from "../useRemote";
  * The public page (F1): upcoming releases with search and filters. No sign-in
  * needed. Filters live in the URL (?q=…&from=…), so a filtered view can be
  * bookmarked or shared, and the Back button undoes a search.
+ *
+ * By default only UPCOMING releases are shown (`from` = today). Ticking
+ * "Include past releases" (?past=1) drops that default so books that are
+ * already out appear too. An explicit From date always wins.
  */
 
 const FILTERS = ["q", "author", "category", "from", "to"] as const;
@@ -32,7 +36,8 @@ export function ReleasesPage() {
     const v = search.get(key)?.trim();
     if (v) apiParams.set(key, v);
   }
-  if (!apiParams.has("from")) apiParams.set("from", todayIso());
+  const includePast = search.get("past") === "1";
+  if (!apiParams.has("from") && !includePast) apiParams.set("from", todayIso());
   const offset = Number(search.get("offset") ?? 0) || 0;
   apiParams.set("limit", String(PAGE_SIZE));
   if (offset > 0) apiParams.set("offset", String(offset));
@@ -42,7 +47,7 @@ export function ReleasesPage() {
 
   return (
     <>
-      <h1>Upcoming book releases</h1>
+      <h1>{includePast ? "Book releases" : "Upcoming book releases"}</h1>
       <FilterForm key={search.toString()} initial={search} />
 
       <section aria-labelledby="results-heading">
@@ -61,8 +66,13 @@ export function ReleasesPage() {
                   Clear filters
                 </button>
               </p>
+            ) : includePast ? (
+              <p>The catalog is empty.</p>
             ) : (
-              <p>No upcoming releases in the catalog yet.</p>
+              <p>
+                No upcoming releases in the catalog yet. Books that are already out are hidden; tick{" "}
+                <strong>Include past releases</strong> to see them.
+              </p>
             )
           }
         >
@@ -79,14 +89,20 @@ function FilterForm({ initial }: { initial: URLSearchParams }) {
     for (const k of FILTERS) v[k] = initial.get(k) ?? "";
     return v;
   });
+  const [past, setPast] = useState(initial.get("past") === "1");
   const set = (k: Filter) => (e: { target: { value: string } }) => setValues((old) => ({ ...old, [k]: e.target.value }));
+
+  const go = (includePast: boolean) => {
+    const next = new URLSearchParams();
+    for (const k of FILTERS) if (values[k].trim()) next.set(k, values[k].trim());
+    if (includePast) next.set("past", "1");
+    const qs = next.toString();
+    navigate(qs ? `/?${qs}` : "/");
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const next = new URLSearchParams();
-    for (const k of FILTERS) if (values[k].trim()) next.set(k, values[k].trim());
-    const qs = next.toString();
-    navigate(qs ? `/?${qs}` : "/");
+    go(past);
   };
 
   return (
@@ -110,6 +126,19 @@ function FilterForm({ initial }: { initial: URLSearchParams }) {
       <div className="field">
         <label htmlFor="f-to">To</label>
         <input id="f-to" type="date" value={values.to} onChange={set("to")} />
+      </div>
+      <div className="field checkbox">
+        <input
+          id="f-past"
+          type="checkbox"
+          checked={past}
+          onChange={(e) => {
+            // Applies straight away, like a view switch; keeps whatever is typed in the other fields.
+            setPast(e.target.checked);
+            go(e.target.checked);
+          }}
+        />
+        <label htmlFor="f-past">Include past releases</label>
       </div>
       <div className="field actions">
         <button type="submit">Search</button>

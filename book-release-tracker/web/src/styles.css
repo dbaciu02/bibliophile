@@ -105,3 +105,25 @@ label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Curate search form */
+.curate-form { margin-bottom: 1.25rem; }
+.curate-form .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.75rem; align-items: end; }
+.curate-form .span-2 { grid-column: span 2; }
+.curate-form .checkbox { display: flex; gap: 0.5rem; align-items: center; padding-bottom: 0.5rem; }
+.curate-form .checkbox input { width: auto; }
+.curate-form .checkbox label { margin: 0; color: var(--fg); font-size: 1rem; }
+.curate-form details { margin: 0.75rem 0; }
+.curate-form summary { cursor: pointer; color: var(--accent); }
+.curate-form details .grid { margin-top: 0.5rem; }
+.curate-form .actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+.result-summary { font-size: 0.9rem; }
+select {
+  font: inherit; color: inherit; background: var(--bg); width: 100%;
+  border: 1px solid var(--muted); border-radius: var(--radius); padding: 0.4rem 0.5rem;
+}
+@media (max-width: 420px) { .curate-form .span-2 { grid-column: span 1; } }
+
+.filters .field.checkbox { flex: 0 0 auto; display: flex; gap: 0.4rem; align-items: center; padding-bottom: 0.5rem; }
+.filters .field.checkbox input { width: auto; }
+.filters .field.checkbox label { margin: 0; color: var(--fg); font-size: 1rem; }

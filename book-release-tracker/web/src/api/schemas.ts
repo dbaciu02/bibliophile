@@ -57,6 +57,8 @@ export type BookCandidate = z.infer<typeof BookCandidate>;
 export const BookSearch = z.object({
   items: z.array(BookCandidate),
   totalItems: z.number().int(),
+  hiddenByDateFilter: z.number().int(),
+  googleQuery: z.string(),
   source: z.enum(["live", "cache", "stale"]),
   fetchedAt: z.string(),
 });

@@ -38,7 +38,7 @@ describe("ReleasesPage — loading, ready, empty, error (F2)", () => {
   it("empty: a clear message, not a blank page", async () => {
     mockApi(() => json(page([])));
     renderApp(<ReleasesPage />);
-    expect(await screen.findByText("No upcoming releases in the catalog yet.")).toBeInTheDocument();
+    expect(await screen.findByText(/No upcoming releases in the catalog yet/)).toBeInTheDocument();
   });
 
   it("FORCED FAILURE (network down): shows an error with Try again, and Try again recovers", async () => {
@@ -117,5 +117,40 @@ describe("ReleasesPage — search and filters (F1)", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Later →" }));
     expect(await screen.findByText("Page Two Book")).toBeInTheDocument();
     expect(calls.at(-1)?.url).toContain("offset=20");
+  });
+});
+
+describe("ReleasesPage — Include past releases", () => {
+  it("ticking it re-requests WITHOUT the from=today default, keeps other filters, and changes the heading", async () => {
+    const calls = mockApi((url) =>
+      url.includes("from=")
+        ? json(page([]))
+        : json(page([release(9, "Dune", "1987-01-01", "year"), release(1, "Future Book", "2027-01-01", "day")])),
+    );
+    renderApp(<ReleasesPage />, { path: "/?author=Frank" });
+    await screen.findByText(/No releases match/);
+    expect(calls[0]?.url).toContain("from=");
+
+    await userEvent.click(screen.getByLabelText("Include past releases"));
+    expect(await screen.findByText("Dune")).toBeInTheDocument();
+    const last = new URL(calls.at(-1)?.url ?? "", "http://x").searchParams;
+    expect(last.has("from")).toBe(false);
+    expect(last.get("author")).toBe("Frank");
+    expect(window.location.search).toBe("?author=Frank&past=1");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Book releases");
+  });
+
+  it("an explicit From date still applies when past releases are included", async () => {
+    const calls = mockApi(() => json(page([])));
+    renderApp(<ReleasesPage />, { path: "/?from=2000-01-01&past=1" });
+    await screen.findByText(/No releases match/);
+    expect(new URL(calls[0]?.url ?? "", "http://x").searchParams.get("from")).toBe("2000-01-01");
+    expect(screen.getByLabelText("Include past releases")).toBeChecked();
+  });
+
+  it("the default empty message tells you past releases are hidden", async () => {
+    mockApi(() => json(page([])));
+    renderApp(<ReleasesPage />);
+    expect(await screen.findByText(/Books that are already out are hidden/)).toBeInTheDocument();
   });
 });

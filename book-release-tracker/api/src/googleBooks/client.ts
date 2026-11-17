@@ -56,7 +56,7 @@ class RetryableError extends Error {
 }
 
 export interface GoogleBooksClient {
-  search(query: string, maxResults: number): Promise<GoogleVolumeList>;
+  search(query: string, maxResults: number, orderBy?: "relevance" | "newest"): Promise<GoogleVolumeList>;
   getVolume(volumeId: string): Promise<GoogleVolume>;
   /** For tests and /healthz-style diagnostics. */
   breakerState(): "closed" | "open";
@@ -159,8 +159,8 @@ export function createGoogleBooksClient(opts: GoogleBooksOptions = {}): GoogleBo
   }
 
   return {
-    search: (q, maxResults) =>
-      call("/volumes", { q, maxResults: String(maxResults), printType: "books" }, GoogleVolumeList),
+    search: (q, maxResults, orderBy = "relevance") =>
+      call("/volumes", { q, maxResults: String(maxResults), orderBy, printType: "books" }, GoogleVolumeList),
     getVolume: (id) => call(`/volumes/${encodeURIComponent(id)}`, {}, GoogleVolume),
     breakerState,
   };

@@ -170,6 +170,27 @@ describe("GET /api/releases (public)", () => {
     expect(titles(await request(app).get("/api/releases?category=Poetry"))).toEqual(["Sometime In 2027"]);
   });
 
+  it("author matches part of a name: a surname alone, or words in any order and case", async () => {
+    for (const author of ["Fictional", "fictional", "bo", "fictional%20bo"]) {
+      expect(titles(await request(app).get(`/api/releases?author=${author}`))).toEqual([
+        "Sometime In November",
+        "December Book 100%",
+      ]);
+    }
+    // every word must be in the SAME author's name
+    expect(titles(await request(app).get("/api/releases?author=ana%20fictional"))).toEqual([]);
+  });
+
+  it("category ignores capitals and matches part of the name", async () => {
+    expect(titles(await request(app).get("/api/releases?category=poetry"))).toEqual(["Sometime In 2027"]);
+    expect(titles(await request(app).get("/api/releases?category=poet"))).toEqual(["Sometime In 2027"]);
+  });
+
+  it("% and _ typed in author or category are matched literally, not as wildcards", async () => {
+    expect(titles(await request(app).get("/api/releases?author=%25"))).toEqual([]);
+    expect(titles(await request(app).get("/api/releases?category=_"))).toEqual([]);
+  });
+
   it("an empty result is 200 with an empty list, not 404", async () => {
     const res = await request(app).get("/api/releases?q=no-such-book");
     expect(res.status).toBe(200);

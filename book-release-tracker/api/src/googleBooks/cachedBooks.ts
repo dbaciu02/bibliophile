@@ -32,7 +32,7 @@ export interface Cached<T> {
 }
 
 export interface BooksService {
-  search(query: string, maxResults: number): Promise<Cached<GoogleVolumeList>>;
+  search(query: string, maxResults: number, orderBy?: "relevance" | "newest"): Promise<Cached<GoogleVolumeList>>;
   getVolume(volumeId: string): Promise<Cached<GoogleVolume>>;
 }
 
@@ -98,12 +98,12 @@ export function createBooksService(db: Db, client: GoogleBooksClient): BooksServ
   }
 
   return {
-    search: (query, maxResults) =>
+    search: (query, maxResults, orderBy = "relevance") =>
       cached(
-        `search:${maxResults}:${query.trim().toLowerCase()}`,
+        `search:${orderBy}:${maxResults}:${query.trim().toLowerCase()}`,
         SEARCH_TTL_SECONDS,
         GoogleVolumeList,
-        () => client.search(query, maxResults),
+        () => client.search(query, maxResults, orderBy),
       ),
     getVolume: (volumeId) =>
       cached(`volume:${volumeId}`, VOLUME_TTL_SECONDS, GoogleVolume, () => client.getVolume(volumeId)),
