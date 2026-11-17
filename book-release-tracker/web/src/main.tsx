@@ -2,8 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { AuthProvider } from "./auth/AuthContext";
+import { MeProvider } from "./auth/useMe";
 import { createUserManager } from "./auth/userManager";
 import { readConfig } from "./env";
+import "./styles.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root element missing from index.html");
@@ -14,7 +16,9 @@ createRoot(root).render(
   <StrictMode>
     {config.ok ? (
       <AuthProvider manager={createUserManager(config.config)}>
-        <App />
+        <MeProvider>
+          <App />
+        </MeProvider>
       </AuthProvider>
     ) : (
       <main>

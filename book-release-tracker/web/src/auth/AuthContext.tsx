@@ -7,7 +7,7 @@ export type AuthStatus =
   | { status: "signedOut"; error?: string }
   | { status: "signedIn"; user: User };
 
-interface AuthValue {
+export interface AuthValue {
   auth: AuthStatus;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -15,7 +15,8 @@ interface AuthValue {
   getAccessToken: () => Promise<string | null>;
 }
 
-const AuthContext = createContext<AuthValue | null>(null);
+// Exported so component tests can supply a fake signed-in user.
+export const AuthContext = createContext<AuthValue | null>(null);
 
 // React StrictMode runs effects twice in development. The callback must only be
 // processed once (its state entry is deleted after use), so share one promise.

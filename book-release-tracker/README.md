@@ -5,7 +5,7 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 4 of 9 — Google Books integration.** See [Build plan](#build-plan) and the
+**Status: step 5 of 9 — frontend pages.** See [Build plan](#build-plan) and the
 full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
@@ -50,7 +50,7 @@ npm run dev:web      # http://localhost:5173
 
 | Command | What it proves |
 | --- | --- |
-| `npm test` | All automated tests, one command (Q1). Uses the `booktracker_test` database. |
+| `npm test` | All automated tests, API and web, one command (Q1). The API tests use the `booktracker_test` database. |
 | `npm run typecheck` | `tsc --strict` for api and web, no errors (F1) |
 | `npm run migrate:down` then `npm run migrate:up` | Initial migration is reversible (F5) |
 | `scripts/curl-evidence.sh` | `curl -i` for every route incl. failures (F3); see the script header |
@@ -100,6 +100,17 @@ Until Entra ID is configured (`ENTRA_TENANT_ID`, `ENTRA_API_CLIENT_ID` in
 start without them. Tests don't use Entra: `api/test/tokens.ts` signs tokens
 with a local test key and the real verification code checks them.
 
+## Pages
+
+| Path | Who | What |
+| --- | --- | --- |
+| `/` | everyone | Upcoming releases grouped by month; search by title, author, category, date range. Filters live in the URL, so a search can be bookmarked |
+| `/watchlist` | signed in | Follow authors; each shows how many upcoming releases they have |
+| `/curate` | Curator | Search Google Books and import volumes into the catalog |
+
+Every remote call has loading, empty and error states
+([docs/evidence/frontend-states.md](docs/evidence/frontend-states.md)).
+
 ## Error shape
 
 Every error response from the API has this body (F3), and the same id is in
@@ -137,7 +148,7 @@ the `X-Request-Id` header and the server log:
 2. ✅ API core: releases + watchlist routes, validation, audit log writes, server-side token validation and roles
 3. ✅ Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
 4. ✅ Google Books integration: timeout, retry, cache, runtime validation, degraded mode, rate limits on Google-backed routes
-5. Frontend pages with loading / empty / error states
+5. ✅ Frontend pages (releases calendar with search/filters, watchlist, curator import) with loading / empty / error states
 6. SSE live updates with replay
 7. MCP server and MCP App
 8. Deployment: staging + production, CI/CD, DNS, HTTPS, CDN, CORS, headers, rate limits

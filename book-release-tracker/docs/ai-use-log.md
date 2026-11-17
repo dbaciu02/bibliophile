@@ -13,6 +13,7 @@ requires you to explain any of it.
 | 2026-11-12 | Claude | Step 4: Configure audit logging for API actions | API configured to log audit entries for each action | _(fill in: e.g. verified token validation, checked network requests, ensured correct handling of authentication)_ |
 | 2026-11-13 | Claude | Step 4: Configure audit logging for API actions | API configured to log audit entries for each action | verified correct tokens and request IDs as well as HTTP request linkage |
 | 2026-11-13 | Claude | Step 5: Integrate Google Books API | API configured to use Google Books API key | _(fill in: e.g. verified API requests, checked responses, ensured correct handling of API key)_ |
+
 ## Challenged AI claims
 
 Record at least one claim from the AI you checked and found wrong or

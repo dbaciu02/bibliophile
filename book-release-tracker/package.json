@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test --workspace api",
+    "test": "npm run test --workspaces",
     "migrate:up": "npm run migrate:up --workspace api",
     "migrate:down": "npm run migrate:down --workspace api",
     "dev:api": "npm run dev --workspace api",

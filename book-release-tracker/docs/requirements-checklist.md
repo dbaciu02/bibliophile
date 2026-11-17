@@ -26,8 +26,8 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 
 | # | Requirement | How this project meets it | Step | Code | Evidence (proof the spec asks for) |
 | --- | --- | --- | --- | --- | --- |
-| F1 | React + TS frontend, public page, search and filter, clean `tsc --strict` | `web/` with `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`; no `any` / `@ts-ignore`. Public calendar with search/filters arrives in step 5 | 1, 5 | 🔶 | ☐ `npm run typecheck` output |
-| F2 | Loading, empty and error states for every remote call | Every call goes through `web/src/useRemote.ts` (loading / empty / error / ready) | 1, 5 | 🔶 | ☐ screenshots + forced-failure test |
+| F1 | React + TS frontend, public page, search and filter, clean `tsc --strict` | `web/` with `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`; no `any` / `@ts-ignore`. Public page `/` with title, author, category and date filters kept in the URL | 1, 5 | ✅ | ☐ `npm run typecheck` output, see [frontend-states.md](evidence/frontend-states.md) |
+| F2 | Loading, empty and error states for every remote call | Reads: `useRemote` + `components/Remote.tsx`; writes: `api/request.ts` with inline errors; every response zod-checked | 5 | ✅ | ☐ screenshots + forced-failure tests (`web/src/pages/*.test.tsx`), see [frontend-states.md](evidence/frontend-states.md) |
 | F3 | REST API: correct methods, status codes, one JSON error shape, server-side validation | Routes in README; one error shape (`api/src/errors.ts`); strict zod validation (`api/src/validation.ts`) | 2 | ✅ | ☐ `scripts/curl-evidence.sh` → `docs/evidence/curl-<sha>.txt` (run with tokens) |
 | F4 | Real database, survives restarts; PKs, FKs, a justified index | Postgres; schema in `api/migrations/`; `books(published_date)` index justified in [index-explain.md](evidence/index-explain.md) | 1 | ✅ | ☐ ER diagram (step 9) · ☐ restart test · ☐ your EXPLAIN output |
 | F5 | Versioned migrations, at least one reversible and tested | Two `node-pg-migrate` SQL migrations with Up/Down; `api/test/migrations.test.ts` runs all up, the newest down and up alone, then all down | 1 | ✅ | ☐ `npm run migrate:down` + `migrate:up` log |
@@ -52,7 +52,7 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 | D6 | CDN with a cache policy per content class; no personalized response shared-cached | `/api/me*` and `/healthz` already send `private, no-store` / `no-store` | 8 | 🔶 | ☐ headers showing MISS, HIT, 304, invalidation |
 | D7 | CORS allowlist of exact origins; CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy` | | 8 | ⬜ | ☐ allowed vs refused preflight |
 | D8 | Core Web Vitals measured; one improvement with before/after | | 9 | ⬜ | ☐ Lighthouse / RUM data |
-| D9 | No serious/critical axe violations; keyboard-only operation | Semantic HTML, `role="status"` / `aria-live` on remote states so far | 5, 9 | 🔶 | ☐ axe report, keyboard walkthrough |
+| D9 | No serious/critical axe violations; keyboard-only operation | Labels on every input, skip link, visible focus, `aria-live` states, `aria-current` nav. axe on Releases / Watchlist / Curate during step 5: 0 violations after fixing one serious label mismatch | 5, 9 | 🔶 | ☐ axe report, keyboard walkthrough |
 | D10 | OpenTelemetry logs, metrics, one trace across ≥2 components; SLI, SLO, an alert that fired | Structured JSON logs with request ids so far | 9 | 🔶 | ☐ dashboard, trace id |
 | D11 | Free tier or budget alert; monthly cost at 1×, 10×, 100× with arithmetic | | 9 | ⬜ | ☐ budget screenshot, cost table |
 
