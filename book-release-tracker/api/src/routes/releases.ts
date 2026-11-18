@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { writeAudit } from "../audit.js";
+import { emitEvent } from "../events/emit.js";
 import { principalOf, requireAuth, SCOPES, type TokenVerifier } from "../auth.js";
 import { isUniqueViolation, withTransaction, type Db } from "../db.js";
 import { HttpError } from "../errors.js";
@@ -40,6 +41,10 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
     try {
       const created = await withTransaction(db, async (client) => {
         const release = await insertRelease(client, body);
+        await emitEvent(client, {
+          type: "release.created",
+          payload: { id: release.id, title: release.title, releaseDate: release.releaseDate },
+        });
         await writeAudit(client, {
           actor,
           action: "release.create",
@@ -68,6 +73,10 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
       const before = await getRelease(client, id, { forUpdate: true });
       if (!before) throw new HttpError(404, "not_found", `Release ${id} not found`);
       const after = await updateRelease(client, id, changes);
+      await emitEvent(client, {
+        type: "release.updated",
+        payload: { id, title: after.title, releaseDate: after.releaseDate },
+      });
       await writeAudit(client, {
         actor,
         action: "release.update",
@@ -89,6 +98,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
       const before = await getRelease(client, id, { forUpdate: true });
       if (!before) throw new HttpError(404, "not_found", `Release ${id} not found`);
       await hideRelease(client, id);
+      await emitEvent(client, { type: "release.hidden", payload: { id } });
       await writeAudit(client, {
         actor,
         action: "release.hide",

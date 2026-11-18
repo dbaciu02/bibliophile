@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "api",
-    "web"
+    "web",
+    "mcp-app"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
@@ -11,7 +12,11 @@
     "migrate:up": "npm run migrate:up --workspace api",
     "migrate:down": "npm run migrate:down --workspace api",
     "dev:api": "npm run dev --workspace api",
-    "dev:web": "npm run dev --workspace web"
+    "dev:web": "npm run dev --workspace web",
+    "seed": "npm run seed --workspace api",
+    "seed:remove": "npm run seed:remove --workspace api",
+    "build:mcp-app": "npm run build --workspace mcp-app",
+    "dev:mcp-host": "npm run host --workspace mcp-app"
   },
   "engines": {
     "node": ">=22"

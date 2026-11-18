@@ -1,4 +1,4 @@
-# Entra ID setup (requirements F7, F8, F9, F12)
+# Entra ID setup (requirements F7, F8, F9, F12, F13)
 
 This is the one part of the project done by clicking in the Microsoft Entra
 admin center (https://entra.microsoft.com) instead of in code. Do it once for
@@ -170,3 +170,48 @@ clean setup is a second pair of registrations (`booktracker-api-staging`,
 production (different `aud`). Add each environment's
 `https://<host>/auth/callback` as a SPA redirect URI on its own web
 registration.
+
+## 8. MCP (build step 7)
+
+The MCP endpoint (`/mcp`) uses the same API registration, scopes and roles as
+the website, so **nothing new is required to run it locally**. Two optional
+additions:
+
+### 8a. A read-only token, for the "read token refused on write tool" evidence
+
+The website always asks for all three scopes, so its tokens can write. To show
+live that a token with **only `Releases.Read`** is refused by
+`add_to_watchlist`, let the Azure CLI (a Microsoft public client, id
+`04b07795-8ddb-461a-bbee-02f9e1bf7b46`) ask for that one scope:
+
+1. **booktracker-api → Expose an API → Authorized client applications → Add a
+   client application** → client id `04b07795-8ddb-461a-bbee-02f9e1bf7b46` →
+   tick **only `Releases.Read`** → Add application.
+2. Install the CLI if needed (`brew install azure-cli`), then sign in **as Test
+   Reader** in the browser window it opens:
+
+   ```bash
+   az login --tenant <tenant-id> --allow-no-subscriptions --scope api://<api-client-id>/Releases.Read
+   az account get-access-token --scope api://<api-client-id>/Releases.Read --query accessToken -o tsv | pbcopy
+   export READONLY_TOKEN=$(pbpaste); echo -n "" | pbcopy
+   ```
+
+3. Check the token locally (nothing is sent anywhere) — `scp` must be exactly
+   `Releases.Read` and `roles` must be `["Reader"]`:
+
+   ```bash
+   node -e 'const c=JSON.parse(Buffer.from(process.argv[1].split(".")[1],"base64url"));console.log({aud:c.aud,scp:c.scp,roles:c.roles,ver:c.ver})' "$READONLY_TOKEN"
+   ```
+
+4. Afterwards: `az logout`, and remove the authorized client application
+   again if you like.
+
+### 8b. A client registration for a real MCP host (with deployment, step 8)
+
+Entra ID doesn't offer dynamic client registration, so an assistant that
+connects to the deployed `/mcp` needs a pre-registered client:
+**App registrations → New registration** (`booktracker-mcp-client`), with the
+redirect URI the host documents, and **API permissions → booktracker-api →
+Delegated → `Releases.Read` and `Watchlist.ReadWrite`**. Its client id (and a
+client secret, only if the host is a confidential client) goes into the host's
+connector settings, never into this repository.

@@ -8,6 +8,11 @@ import { useCallback, useEffect, useState } from "react";
  * just because TypeScript has a type for it. Pass `parse`, `isEmpty` and
  * `getToken` as stable references (module-level or useCallback), or the
  * request re-runs on every render.
+ *
+ * `retry()` shows the loading state again (the user asked for it).
+ * `refresh()` re-fetches quietly: the current data stays on screen until the
+ * new data arrives, and a failed quiet refresh keeps the old data. Live
+ * updates use refresh() so the list doesn't flash.
  */
 export type RemoteState<T> =
   | { status: "loading" }
@@ -37,14 +42,19 @@ export function useRemote<T>(
   url: string,
   parse: (json: unknown) => T,
   { isEmpty = never, getToken }: RemoteOptions<T> = {},
-): { state: RemoteState<T>; retry: () => void } {
+): { state: RemoteState<T>; retry: () => void; refresh: () => void } {
   const [state, setState] = useState<RemoteState<T>>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const [attempt, setAttempt] = useState({ n: 0, quiet: false });
+  const retry = useCallback(() => setAttempt((a) => ({ n: a.n + 1, quiet: false })), []);
+  const refresh = useCallback(() => setAttempt((a) => ({ n: a.n + 1, quiet: true })), []);
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ status: "loading" });
+    const quiet = attempt.quiet;
+    if (!quiet) setState({ status: "loading" });
+    // A failed quiet refresh keeps whatever is already on screen.
+    const fail = (next: RemoteState<T>) =>
+      setState((prev) => (quiet && (prev.status === "ready" || prev.status === "empty") ? prev : next));
 
     (async () => {
       try {
@@ -52,7 +62,7 @@ export function useRemote<T>(
         if (getToken) {
           const token = await getToken();
           if (!token) {
-            setState({ status: "error", message: "You need to sign in first", httpStatus: 401 });
+            fail({ status: "error", message: "You need to sign in first", httpStatus: 401 });
             return;
           }
           headers.Authorization = `Bearer ${token}`;
@@ -60,7 +70,7 @@ export function useRemote<T>(
         const res = await fetch(url, { signal: controller.signal, headers });
         const json: unknown = await res.json().catch(() => null);
         if (!res.ok) {
-          setState(
+          fail(
             isApiErrorBody(json)
               ? { status: "error", message: json.error.message, httpStatus: res.status, requestId: json.error.requestId }
               : { status: "error", message: `Request failed (${res.status})`, httpStatus: res.status },
@@ -71,12 +81,12 @@ export function useRemote<T>(
         setState(isEmpty(data) ? { status: "empty" } : { status: "ready", data });
       } catch (err) {
         if (controller.signal.aborted) return;
-        setState({ status: "error", message: err instanceof Error ? err.message : "Network error" });
+        fail({ status: "error", message: err instanceof Error ? err.message : "Network error" });
       }
     })();
 
     return () => controller.abort();
   }, [url, parse, isEmpty, getToken, attempt]);
 
-  return { state, retry };
+  return { state, retry, refresh };
 }

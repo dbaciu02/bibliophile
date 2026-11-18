@@ -1,7 +1,10 @@
+import path from "node:path";
 import { createApp } from "./app.js";
 import { createTokenVerifier, entraVerifierOptions, rejectAllVerifier } from "./auth.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db.js";
+import { createEventHub } from "./events/hub.js";
+import { loadAppHtml } from "./mcp/tools.js";
 import { createBooksService } from "./googleBooks/cachedBooks.js";
 import { createGoogleBooksClient } from "./googleBooks/client.js";
 
@@ -29,7 +32,20 @@ const books = createBooksService(db, createGoogleBooksClient({
     ...(config.GOOGLE_BOOKS_BASE_URL ? { baseUrl: config.GOOGLE_BOOKS_BASE_URL } : {}),
   }));
 
-const app = createApp({ db, gitSha: config.GIT_SHA, verifyToken, books });
+const events = await createEventHub(db, config.DATABASE_URL);
+
+// MCP server at /mcp (F12/F13): needs Entra to be configured, like every protected route.
+const mcp =
+  config.ENTRA_TENANT_ID && config.ENTRA_API_CLIENT_ID
+    ? {
+        apiAudience: config.ENTRA_API_CLIENT_ID,
+        issuer: `https://login.microsoftonline.com/${config.ENTRA_TENANT_ID}/v2.0`,
+        publicBaseUrl: new URL(config.PUBLIC_BASE_URL),
+        appHtml: loadAppHtml(path.resolve(config.MCP_APP_HTML)),
+      }
+    : undefined;
+
+const app = createApp({ db, gitSha: config.GIT_SHA, verifyToken, books, events, ...(mcp ? { mcp } : {}) });
 
 const server = app.listen(config.PORT, () => {
   console.log(JSON.stringify({ level: "info", msg: "api listening", port: config.PORT, commit: config.GIT_SHA }));
@@ -39,8 +55,10 @@ const server = app.listen(config.PORT, () => {
 // Hosts send SIGTERM on every redeploy.
 function shutdown(signal: string): void {
   console.log(JSON.stringify({ level: "info", msg: "shutting down", signal }));
+  // Open SSE streams never finish on their own, so close them explicitly.
+  server.closeAllConnections();
   server.close(() => {
-    void db.end().then(() => process.exit(0));
+    void events.close().then(() => db.end()).then(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }

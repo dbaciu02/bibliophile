@@ -20,7 +20,7 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 | No fabricated or altered evidence | All evidence files are run and pasted by you; hand predictions written before tests; AI-produced examples are labelled as such | all | — | ☐ |
 | Deployment reproducible from instructions | README "Run it on a clean machine" (verified from a clean copy each step); IaC/config | 8 | 🔶 | ☐ clean-clone run |
 | No write action or MCP tool reachable without authorization | Every write route uses `requireAuth` (`api/src/auth.ts`); tests prove 401/403; MCP tools get per-tool scopes | 2, 7 | 🔶 | ☐ |
-| Synthetic data only | Own Entra tenant with made-up test users (not DePaul's); seed data is invented. **Open question:** confirm with the instructor that public Google Books catalog data is acceptable | 3, 4 | 🔶 | ☐ instructor's answer |
+| Synthetic data only | Own Entra tenant with made-up test users (not DePaul's); `npm run seed` adds 160 invented books (24 hand-written + 136 generated with a fixed seed, `api/src/seed/sampleBooks.ts`), audited as `system:seed-script`. **Open question:** confirm with the instructor that public Google Books catalog data is acceptable | 3, 4 | 🔶 | ☐ instructor's answer |
 
 ## 2. Functional requirements
 
@@ -36,9 +36,9 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 | F8 | Server-side token validation: signature, issuer, audience, expiry, scope | `jose` with Entra's JWKS, RS256 only (`api/src/auth.ts`) | 2 | ✅ | ☐ `npx vitest run test/auth.test.ts` output (one failing case per check) |
 | F9 | At least two roles from validated claims, enforced on the server | Reader / Curator app roles in the token's `roles` claim | 2, 3 | ✅ | ☐ 401 anonymous + 403 Reader lines from the curl transcript |
 | F10 | Third-party API from the server: key in secret store, timeout, bounded retry, cache within limits, runtime-validated response, graceful degradation | Google Books, server-side only (`api/src/googleBooks/`): 3 s timeout, ≤2 retries, Postgres cache, zod validation, stale fallback + circuit breaker | 4 | ✅ | ☐ stubbed-down test output + outage demo, see [google-books.md](evidence/google-books.md) |
-| F11 | Live updates (SSE or WebSockets), justified; reconnect without loss or duplicates | SSE; `events.id` is the event id, replay from `Last-Event-ID` | 6 | ⬜ (table exists) | ☐ kill-and-recover demo |
-| F12 | MCP server: ≥3 read tools, 1 write tool with confirmation, OAuth with per-tool scopes, audited | `search_releases`, `upcoming_for_author`, `get_my_watchlist`; `add_to_watchlist` (confirm, `Watchlist.ReadWrite`) | 7 | ⬜ | ☐ read-only token refused on the write tool |
-| F13 | Interactive MCP App (React/TS), same authorization | Small release-calendar widget | 7 | ⬜ | ☐ host recording |
+| F11 | Live updates (SSE or WebSockets), justified; reconnect without loss or duplicates | SSE (`GET /api/events`): events written in the same transaction as each change, ordered by an advisory lock, replayed from `Last-Event-ID`, de-duplicated per connection; ping + watchdog for dead streams | 6 | ✅ | ☐ tests + kill-and-recover demo, see [live-updates.md](evidence/live-updates.md) |
+| F12 | MCP server: ≥3 read tools, 1 write tool with confirmation, OAuth with per-tool scopes, audited | `POST /mcp` (`api/src/mcp/`): read tools `search_releases`, `get_release`, `upcoming_for_author`, `get_my_watchlist`, `show_release_calendar`; write tool `add_to_watchlist` with a server-issued one-time confirmation token. Entra tokens, RFC 9728 metadata, per-tool scopes (403 `insufficient_scope` step-up), roles, every call audited. See [mcp.md](mcp.md) | 7 | ✅ | ☐ `test/mcp.test.ts` output · ☐ `scripts/mcp-evidence.sh` transcript (read-only token → 403) · ☐ audit query, see [evidence/mcp.md](evidence/mcp.md) |
+| F13 | Interactive MCP App (React/TS), same authorization | `mcp-app/`: release calendar served as `ui://bibliophile/release-calendar.html`; range change and Follow (with Confirm) are tool calls through the host, so the same scopes, roles, confirmation and audit apply; axe 0 violations | 7 | ✅ | ☐ app tests output · ☐ host recording/screenshots, see [evidence/mcp.md](evidence/mcp.md) |
 
 ## 3. Deployment and delivery
 

@@ -15,12 +15,20 @@ const ConfigSchema = z
     ENTRA_API_CLIENT_ID: z.preprocess(emptyToUndefined, z.uuid().optional()),
     // Optional locally (Google allows a small anonymous quota); required in production.
     GOOGLE_BOOKS_API_KEY: z.preprocess(emptyToUndefined, z.string().regex(/^[A-Za-z0-9_-]{20,100}$/).optional()),
+    // Public URL of this API (used in MCP discovery documents). https in production.
+    PUBLIC_BASE_URL: z.url().default("http://localhost:3000"),
+    // The built MCP App (single HTML file); see mcp-app/.
+    MCP_APP_HTML: z.string().default("../mcp-app/dist/release-calendar.html"),
     // Only for demos / Game Day: point at something dead to simulate a Google outage.
     GOOGLE_BOOKS_BASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
   })
   .refine((c) => c.NODE_ENV !== "production" || (c.ENTRA_TENANT_ID && c.ENTRA_API_CLIENT_ID), {
     message: "ENTRA_TENANT_ID and ENTRA_API_CLIENT_ID are required in production",
     path: ["ENTRA_TENANT_ID"],
+  })
+  .refine((c) => c.NODE_ENV !== "production" || c.PUBLIC_BASE_URL.startsWith("https://"), {
+    message: "PUBLIC_BASE_URL must be https in production",
+    path: ["PUBLIC_BASE_URL"],
   })
   .refine((c) => c.NODE_ENV !== "production" || c.GOOGLE_BOOKS_API_KEY, {
     message: "GOOGLE_BOOKS_API_KEY is required in production",

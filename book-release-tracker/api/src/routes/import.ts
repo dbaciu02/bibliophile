@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { writeAudit } from "../audit.js";
+import { emitEvent } from "../events/emit.js";
 import { principalOf, requireAuth, SCOPES, type TokenVerifier } from "../auth.js";
 import { isUniqueViolation, withTransaction, type Db } from "../db.js";
 import { HttpError } from "../errors.js";
@@ -75,6 +76,10 @@ export function importRouter(db: Db, verify: TokenVerifier, books: BooksService)
       try {
         const created = await withTransaction(db, async (client) => {
           const release = await insertRelease(client, input);
+          await emitEvent(client, {
+            type: "release.created",
+            payload: { id: release.id, title: release.title, releaseDate: release.releaseDate },
+          });
           await writeAudit(client, {
             actor,
             action: "release.import",

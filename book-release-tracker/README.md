@@ -5,7 +5,7 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 5 of 9 — frontend pages.** See [Build plan](#build-plan) and the
+**Status: step 7 of 9 — MCP server and MCP App.** See [Build plan](#build-plan) and the
 full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
@@ -16,7 +16,9 @@ api/          Express + TypeScript REST API
   src/          app code
   test/         Vitest tests (run against a real Postgres)
 web/          React + TypeScript frontend (Vite)
-scripts/      curl-evidence.sh (F3 transcripts)
+mcp-app/      MCP App: the release calendar shown inside AI assistants (React + TS)
+  dev-host/     minimal MCP Apps host for local testing (never deployed)
+scripts/      curl-evidence.sh (F3), mcp-evidence.sh (F12) transcripts
 docs/         Entra ID setup, secrets inventory, evidence, AI use log
 docker/       local database init
 ```
@@ -41,19 +43,30 @@ cp .env.example api/.env
 # 3. Schema
 npm run migrate:up
 
+# 3b. Optional: 160 invented sample books (dates relative to today), so the
+#     catalog isn't empty. Safe to run again; `npm run seed:remove` hides them.
+npm run seed
+
+# 3c. Build the MCP App the API serves (once, and after changing mcp-app/)
+npm run build:mcp-app
+
 # 4. Run (two terminals)
-npm run dev:api      # http://localhost:3000/healthz
+npm run dev:api      # http://localhost:3000/healthz (MCP at /mcp)
 npm run dev:web      # http://localhost:5173
+
+# Optional: try the MCP App in the local test host (docs/mcp.md)
+npm run dev:mcp-host # http://localhost:5174
 ```
 
 ## Checks
 
 | Command | What it proves |
 | --- | --- |
-| `npm test` | All automated tests, API and web, one command (Q1). The API tests use the `booktracker_test` database. |
-| `npm run typecheck` | `tsc --strict` for api and web, no errors (F1) |
+| `npm test` | All automated tests (API, web, MCP App), one command (Q1). The API tests use the `booktracker_test` database. |
+| `npm run typecheck` | `tsc --strict` for api, web and mcp-app, no errors (F1) |
 | `npm run migrate:down` then `npm run migrate:up` | Initial migration is reversible (F5) |
 | `scripts/curl-evidence.sh` | `curl -i` for every route incl. failures (F3); see the script header |
+| `scripts/mcp-evidence.sh` | `curl -i` for the MCP endpoint: 401 + metadata, 403 for a read-only token, the confirmation step (F12) |
 
 ## API routes
 
@@ -67,6 +80,9 @@ npm run dev:web      # http://localhost:5173
 | `DELETE /api/releases/:id` (soft hide) | Curator (`Releases.Write`) | 204, 400, 401, 403, 404 |
 | `GET /api/books/search?q&title&author&subject&publisher&isbn&orderBy&year&upcomingOnly&maxResults` (Google Books, cached) | Curator (`Releases.Write`) | 200, 400, 401, 403, 429, 503 |
 | `POST /api/releases/import` `{googleVolumeId}` | Curator (`Releases.Write`) | 201 + Location, 400, 401, 403, 404, 409, 429, 503 |
+| `GET /api/events` (Server-Sent Events: `release.created`, `release.updated`, `release.hidden`, `reset`, `ping`) | public | 200 stream |
+| `GET /.well-known/oauth-protected-resource/mcp` (RFC 9728: where to get a token for `/mcp`) | public | 200 |
+| `POST /mcp` (MCP, Streamable HTTP; tools in [docs/mcp.md](docs/mcp.md)) | bearer token; scope per tool | 200 · 401 · 403 `insufficient_scope` |
 | `GET /api/me` | Reader or Curator (`Releases.Read`) | 200, 401, 403 |
 | `GET /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 200, 401, 403 |
 | `POST /api/me/watchlist` | Reader or Curator (`Watchlist.ReadWrite`) | 201 + Location, 400, 401, 403, 409 |
@@ -113,6 +129,10 @@ with a local test key and the real verification code checks them.
 | `/watchlist` | signed in | Follow authors; each shows how many upcoming releases they have |
 | `/curate` | Curator | Search Google Books by keywords, title, author, subject, publisher or ISBN; filter by year or upcoming only; sort by relevance or newest; import into the catalog |
 
+The releases page updates itself live (● Live / Reconnecting… indicator, a
+"New" tag, and a Live update log). How reconnects avoid lost or duplicated
+events, and why SSE: [docs/evidence/live-updates.md](docs/evidence/live-updates.md).
+
 Every remote call has loading, empty and error states
 ([docs/evidence/frontend-states.md](docs/evidence/frontend-states.md)).
 
@@ -154,8 +174,8 @@ the `X-Request-Id` header and the server log:
 3. ✅ Entra ID login in the browser (Auth Code + PKCE, `state`, `nonce`), API wired to the real tenant — setup in [docs/entra-id-setup.md](docs/entra-id-setup.md)
 4. ✅ Google Books integration: timeout, retry, cache, runtime validation, degraded mode, rate limits on Google-backed routes
 5. ✅ Frontend pages (releases calendar with search/filters, watchlist, curator import) with loading / empty / error states
-6. SSE live updates with replay
-7. MCP server and MCP App
+6. ✅ SSE live updates with replay (no lost or duplicated events across reconnects)
+7. ✅ MCP server and MCP App: six tools behind Entra OAuth with per-tool scopes, a confirmed write tool, every call audited; the release calendar as an MCP App — see [docs/mcp.md](docs/mcp.md)
 8. Deployment: staging + production, CI/CD, DNS, HTTPS, CDN, CORS, headers, rate limits
 9. Observability, performance, accessibility, cost, runbook, Game Day
 
@@ -168,4 +188,11 @@ current here.
   GHSA-g3hv-75wg-m249) in `glob`/`minimatch`, pulled in by `node-pg-migrate`.
   They only run when migrations run, on our own `migrations/` folder, never on
   user input. npm's only fix is downgrading node-pg-migrate to 7.x, so this is
-  accepted for now and rechecked before deployment. AI assistance is logged in [docs/ai-use-log.md](docs/ai-use-log.md).
+  accepted for now and rechecked before deployment.
+- `npm audit` also reports GHSA-fc5q-39xc-vjpf (high, ReDoS) in `picomatch`,
+  used by the build and test tools (Vite, Vitest, vite-plugin-singlefile).
+  They only match our own config's file patterns, never user input, and
+  nothing from them ships to the server or browser. No fixed picomatch
+  version exists yet; rechecked before deployment.
+
+AI assistance is logged in [docs/ai-use-log.md](docs/ai-use-log.md).

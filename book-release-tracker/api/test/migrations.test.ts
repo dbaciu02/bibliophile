@@ -23,6 +23,7 @@ const EXPECTED_TABLES = [
   "books",
   "events",
   "google_books_cache",
+  "mcp_confirmations",
   "users",
   "watchlist_items",
 ];
@@ -44,7 +45,11 @@ describe("initial schema migration", () => {
 
   it("up creates every table, running the migrations in order", async () => {
     const ran = await migrate("up");
-    expect(ran).toEqual(["1761166800000_initial-schema", "1763082000000_google-books-cache"]);
+    expect(ran).toEqual([
+      "1761166800000_initial-schema",
+      "1763082000000_google-books-cache",
+      "1763424000000_mcp-confirmations",
+    ]);
     expect(await tables()).toEqual(EXPECTED_TABLES);
   });
 
@@ -99,16 +104,20 @@ describe("initial schema migration", () => {
   });
 
   it("the newest migration alone can be reverted and re-applied (one step down, one step up)", async () => {
-    expect(await migrate("down", 1)).toEqual(["1763082000000_google-books-cache"]);
-    expect(await tables()).not.toContain("google_books_cache");
-    expect(await tables()).toContain("books"); // the earlier migration is untouched
-    expect(await migrate("up", 1)).toEqual(["1763082000000_google-books-cache"]);
-    expect(await tables()).toContain("google_books_cache");
+    expect(await migrate("down", 1)).toEqual(["1763424000000_mcp-confirmations"]);
+    expect(await tables()).not.toContain("mcp_confirmations");
+    expect(await tables()).toContain("google_books_cache"); // earlier migrations untouched
+    expect(await migrate("up", 1)).toEqual(["1763424000000_mcp-confirmations"]);
+    expect(await tables()).toContain("mcp_confirmations");
   });
 
   it("down removes everything again (reversible), newest first", async () => {
     const ran = await migrate("down");
-    expect(ran).toEqual(["1763082000000_google-books-cache", "1761166800000_initial-schema"]);
+    expect(ran).toEqual([
+      "1763424000000_mcp-confirmations",
+      "1763082000000_google-books-cache",
+      "1761166800000_initial-schema",
+    ]);
     expect(await tables()).toEqual([]);
     const types = await client.query(`SELECT 1 FROM pg_type WHERE typname = 'date_precision'`);
     expect(types.rows).toHaveLength(0);

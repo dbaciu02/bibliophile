@@ -33,6 +33,10 @@ export interface Principal {
   name: string;
   roles: Role[];
   scopes: string[];
+  /** Token expiry (seconds since epoch). Optional so non-token actors (e.g. the seed script) can be principals. */
+  expiresAt?: number;
+  /** The app the token was issued to (Entra `azp`), e.g. the web app or an MCP host. */
+  clientId?: string;
 }
 
 export interface TokenVerifierOptions {
@@ -78,8 +82,9 @@ export function createTokenVerifier(opts: TokenVerifierOptions): TokenVerifier {
       : [];
     const scopes = typeof payload.scp === "string" ? payload.scp.split(" ").filter(Boolean) : [];
     const name = typeof payload.name === "string" ? payload.name : subject;
+    const clientId = typeof payload.azp === "string" ? payload.azp : typeof payload.appid === "string" ? payload.appid : "unknown";
 
-    return { subject, name, roles, scopes };
+    return { subject, name, roles, scopes, expiresAt: payload.exp as number, clientId };
   };
 }
 

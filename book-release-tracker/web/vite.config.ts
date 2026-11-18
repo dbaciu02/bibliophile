@@ -8,7 +8,19 @@ export default defineConfig({
     // In development the browser talks to Vite only; Vite forwards API calls,
     // so there is no cross-origin request (CORS is configured for staging/prod).
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": {
+        target: "http://localhost:3000",
+        // If the API dies mid-stream, end the browser's side too, so an open
+        // live-update stream (/api/events) notices and reconnects. Without
+        // this the dev proxy keeps the browser's connection open forever.
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes, _req, res) => {
+            proxyRes.on("close", () => {
+              if (!res.writableEnded) res.destroy();
+            });
+          });
+        },
+      },
       "/healthz": "http://localhost:3000",
     },
   },

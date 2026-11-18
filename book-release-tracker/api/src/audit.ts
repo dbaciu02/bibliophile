@@ -1,5 +1,5 @@
 import type { Principal } from "./auth.js";
-import type { DbClient } from "./db.js";
+import type { Db, DbClient } from "./db.js";
 
 export type AuditAction =
   | "release.create"
@@ -7,7 +7,9 @@ export type AuditAction =
   | "release.update"
   | "release.hide"
   | "watchlist.add"
-  | "watchlist.remove";
+  | "watchlist.remove"
+  | "mcp.tool_call"
+  | "mcp.tool_refused";
 
 /**
  * Appends one row to the audit trail (F6). Always called with the SAME client
@@ -16,11 +18,11 @@ export type AuditAction =
  * The actor comes from the validated token, never from the request body.
  */
 export async function writeAudit(
-  client: DbClient,
+  client: Db | DbClient,
   entry: {
     actor: Principal;
     action: AuditAction;
-    entityType: "book" | "watchlist_item";
+    entityType: "book" | "watchlist_item" | "mcp_tool";
     entityId: string | number;
     before: unknown;
     after: unknown;

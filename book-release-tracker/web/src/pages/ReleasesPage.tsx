@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import { parseReleasePage, type Release, type ReleasePage } from "../api/schemas";
 import { Remote } from "../components/Remote";
-import { formatReleaseDate, groupLabel } from "../format";
+import { formatReleaseDate, groupReleases } from "../format";
+import { LiveLog, LiveStatusPill } from "../live/LiveStatus";
+import { useLiveEvents, type LiveEvent } from "../live/useLiveEvents";
 import { navigate, useLocation } from "../router";
 import { useRemote } from "../useRemote";
 
@@ -13,6 +15,10 @@ import { useRemote } from "../useRemote";
  * By default only UPCOMING releases are shown (`from` = today). Ticking
  * "Include past releases" (?past=1) drops that default so books that are
  * already out appear too. An explicit From date always wins.
+ *
+ * Live updates (F11): when a curator adds, edits or hides a book, the list
+ * re-fetches itself quietly (same filters, no loading flash), new books get a
+ * "New" tag, and screen readers hear what changed.
  */
 
 const FILTERS = ["q", "author", "category", "from", "to"] as const;
@@ -42,13 +48,46 @@ export function ReleasesPage() {
   apiParams.set("limit", String(PAGE_SIZE));
   if (offset > 0) apiParams.set("offset", String(offset));
 
-  const { state, retry } = useRemote(`/api/releases?${apiParams.toString()}`, parseReleasePage, { isEmpty: isEmptyPage });
+  const { state, retry, refresh } = useRemote(`/api/releases?${apiParams.toString()}`, parseReleasePage, {
+    isEmpty: isEmptyPage,
+  });
   const filtered = FILTERS.some((k) => search.get(k));
+
+  // ---- live updates
+  const [newIds, setNewIds] = useState<ReadonlySet<number>>(new Set());
+  const [announcement, setAnnouncement] = useState("");
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onLive = useCallback(
+    (e: LiveEvent) => {
+      const title = e.data.title ? `“${e.data.title}”` : "A release";
+      if (e.type === "release.created" && e.data.id !== undefined) {
+        const id = e.data.id;
+        setNewIds((old) => new Set(old).add(id));
+        setAnnouncement(`${title} was added.`);
+      } else if (e.type === "release.updated") {
+        setAnnouncement(`${title} was updated.`);
+      } else if (e.type === "release.hidden") {
+        setAnnouncement("A release was removed.");
+      }
+      // Coalesce bursts (e.g. a curator importing several books) into one re-fetch.
+      if (pending.current) clearTimeout(pending.current);
+      pending.current = setTimeout(refresh, 250);
+    },
+    [refresh],
+  );
+  const live = useLiveEvents(onLive);
 
   return (
     <>
-      <h1>{includePast ? "Book releases" : "Upcoming book releases"}</h1>
+      <div className="page-title">
+        <h1>{includePast ? "Book releases" : "Upcoming book releases"}</h1>
+        <LiveStatusPill status={live.status} />
+      </div>
+      <p className="visually-hidden" aria-live="polite">
+        {announcement}
+      </p>
       <FilterForm key={search.toString()} initial={search} />
+      <LiveLog log={live.log} />
 
       <section aria-labelledby="results-heading">
         <h2 id="results-heading" className="visually-hidden">
@@ -76,7 +115,7 @@ export function ReleasesPage() {
             )
           }
         >
-          {(page) => <ReleaseList page={page} offset={offset} search={search} />}
+          {(page) => <ReleaseList page={page} offset={offset} search={search} newIds={newIds} />}
         </Remote>
       </section>
     </>
@@ -147,15 +186,19 @@ function FilterForm({ initial }: { initial: URLSearchParams }) {
   );
 }
 
-function ReleaseList({ page, offset, search }: { page: ReleasePage; offset: number; search: URLSearchParams }) {
-  // Group consecutive releases under a month (or "Sometime in YYYY") heading.
-  const groups: { label: string; items: Release[] }[] = [];
-  for (const r of page.items) {
-    const label = groupLabel(r.releaseDate, r.datePrecision);
-    const last = groups.at(-1);
-    if (last && last.label === label) last.items.push(r);
-    else groups.push({ label, items: [r] });
-  }
+function ReleaseList({
+  page,
+  offset,
+  search,
+  newIds,
+}: {
+  page: ReleasePage;
+  offset: number;
+  search: URLSearchParams;
+  newIds: ReadonlySet<number>;
+}) {
+  // One heading per month (or "Sometime in YYYY"), each heading once.
+  const groups = groupReleases<Release>(page.items);
 
   const pageLink = (newOffset: number) => {
     const next = new URLSearchParams(search);
@@ -179,7 +222,10 @@ function ReleaseList({ page, offset, search }: { page: ReleasePage; offset: numb
                   <div className="cover-placeholder" aria-hidden="true" />
                 )}
                 <div>
-                  <p className="title">{r.title}</p>
+                  <p className="title">
+                    {r.title}
+                    {newIds.has(r.id) && <span className="tag tag-new">New</span>}
+                  </p>
                   <p className="muted">{r.authors.join(", ")}</p>
                   <p>
                     <time dateTime={r.releaseDate}>{formatReleaseDate(r.releaseDate, r.datePrecision)}</time>

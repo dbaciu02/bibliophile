@@ -127,3 +127,16 @@ select {
 .filters .field.checkbox { flex: 0 0 auto; display: flex; gap: 0.4rem; align-items: center; padding-bottom: 0.5rem; }
 .filters .field.checkbox input { width: auto; }
 .filters .field.checkbox label { margin: 0; color: var(--fg); font-size: 1rem; }
+
+/* Live updates */
+.page-title { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.page-title h1 { margin-right: auto; }
+.live-pill { font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
+.live-pill .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--muted); }
+.live-live .dot { background: var(--ok); }
+.live-reconnecting .dot { background: var(--error); }
+.live-reconnecting { color: var(--error); }
+.tag-new { color: var(--ok); border-color: var(--ok); font-weight: 600; }
+.live-log { margin: 0 0 1rem; font-size: 0.85rem; }
+.live-log summary { cursor: pointer; color: var(--accent); }
+.live-log ol { margin: 0.5rem 0 0; padding-left: 1.5rem; }

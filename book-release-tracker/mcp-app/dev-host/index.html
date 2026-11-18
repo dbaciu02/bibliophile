@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bibliophile MCP dev host</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+      aside { padding: 16px; border-right: 1px solid #ccc; background: #f6f6f8; }
+      aside h1 { font-size: 1rem; margin-top: 0; }
+      label { display: block; margin: 10px 0 4px; font-size: 0.85rem; font-weight: 600; }
+      textarea, input { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.85rem; }
+      textarea { height: 90px; }
+      button { margin-top: 12px; font: inherit; padding: 4px 12px; }
+      .hint { font-size: 0.8rem; color: #555; }
+      #status { font-size: 0.85rem; margin-top: 10px; }
+      #log { font: 12px ui-monospace, monospace; white-space: pre-wrap; max-height: 45vh; overflow: auto; background: #fff; border: 1px solid #ddd; padding: 6px; }
+      main { padding: 16px; }
+      iframe { width: 100%; border: 1px solid #ccc; border-radius: 8px; height: 480px; }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <h1>Bibliophile MCP dev host</h1>
+      <p class="hint">
+        A minimal MCP Apps host for local testing: it connects to <code>/mcp</code> with your token, runs
+        <code>show_release_calendar</code>, and shows the app in a sandboxed iframe. The token stays in this
+        page's memory only.
+      </p>
+      <form id="form">
+        <label for="token">Access token (Bearer)</label>
+        <textarea id="token" required autocomplete="off" spellcheck="false"></textarea>
+        <label for="author">Author filter (optional)</label>
+        <input id="author" />
+        <label for="months">Months ahead</label>
+        <input id="months" type="number" min="1" max="12" value="3" />
+        <button type="submit">Run show_release_calendar</button>
+      </form>
+      <p id="status" role="status"></p>
+      <label for="log">Tool calls through this host</label>
+      <div id="log" tabindex="0"></div>
+    </aside>
+    <main id="stage"></main>
+    <script type="module" src="./host.ts"></script>
+  </body>
+</html>
