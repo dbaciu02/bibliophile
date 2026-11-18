@@ -1,0 +1,141 @@
+# MCP evidence
+# date:   2026-11-18T05:09:34Z
+# commit: 03dc233a319b5cdf163c448da3e8ef7804a0097f
+# base:   http://localhost:3000
+
+==================================================================
+## Protected-resource metadata (RFC 9728) -> 200
+$ curl -i http://localhost:3000/.well-known/oauth-protected-resource/mcp
+
+HTTP/1.1 200 OK
+X-Request-Id: 91137e89-a86d-4dee-97e1-32f6f95e22d4
+Access-Control-Allow-Origin: *
+Content-Type: application/json; charset=utf-8
+Content-Length: 342
+ETag: W/"156-jrTf32Hj6dUfxjjLArx9VScjnTA"
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"resource":"http://localhost:3000/mcp","authorization_servers":["https://login.microsoftonline.com/1e3a78c9-1d2e-4f9d-bfa2-516560e44854/v2.0"],"scopes_supported":["api://c815aa80-06ef-4e34-90d6-8e721dad1bb3/Releases.Read","api://c815aa80-06ef-4e34-90d6-8e721dad1bb3/Watchlist.ReadWrite"],"resource_name":"Bibliophile (book release tracker)"}
+
+==================================================================
+## tools/list without a token -> 401 + WWW-Authenticate with resource_metadata
+$ curl -i -X POST ... http://localhost:3000/mcp
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: 9bb1c45c-e370-43b5-b012-1d91a2df55fd
+WWW-Authenticate: Bearer error="invalid_token", error_description="Missing Authorization header", resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/mcp"
+Content-Type: application/json; charset=utf-8
+Content-Length: 76
+ETag: W/"4c-ptrIdu+3yjAtarglCEu6XVLnz2c"
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"invalid_token","error_description":"Missing Authorization header"}
+
+==================================================================
+## tools/list with a garbage token -> 401 invalid_token
+$ curl -i -X POST -H 'Authorization: Bearer not-a-jwt' ... http://localhost:3000/mcp
+
+HTTP/1.1 401 Unauthorized
+X-Request-Id: 7ba88ff1-fe06-4b93-91ee-77dcf43f3a8f
+WWW-Authenticate: Bearer error="invalid_token", error_description="The access token is invalid or expired", resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/mcp"
+Content-Type: application/json; charset=utf-8
+Content-Length: 86
+ETag: W/"56-yRKxLSEXW6JzdK+6iLGKNlFApXA"
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"invalid_token","error_description":"The access token is invalid or expired"}
+
+==================================================================
+## Foreign Host header -> 403 (DNS-rebinding guard)
+$ curl -i -X POST -H 'Host: evil.example' ... http://localhost:3000/mcp
+
+HTTP/1.1 403 Forbidden
+X-Request-Id: 1abc6f9c-acbb-4854-80f2-768c71db4b3d
+Content-Type: application/json; charset=utf-8
+Content-Length: 90
+ETag: W/"5a-X0VAGBemBvY9R7001BvVBlaFlmk"
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"jsonrpc":"2.0","error":{"code":-32000,"message":"Invalid Host: evil.example"},"id":null}
+
+==================================================================
+## tools/list as Test Reader -> 200, six tools
+$ curl -i -X POST -H 'Authorization: Bearer $READER_TOKEN' ... tools/list
+
+HTTP/1.1 200 OK
+X-Request-Id: d6fa4e34-f9c7-4c45-85d6-57a4cc7c3548
+cache-control: no-store
+connection: keep-alive
+content-type: text/event-stream
+x-accel-buffering: no
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Transfer-Encoding: chunked
+
+event: message
+data: {"result":{"tools":[{"name":"search_releases","title":"Search book releases","description":"Search the Bibliophile catalog of book releases by title words, author and/or category. By default only upcoming releases; set includePast to include books already out.","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"query":{"description":"Words in the title","type":"string","minLength":1,"maxLength":200},"author":{"description":"Author name or part of it, e.g. a surname","type":"string","minLength":1,"maxLength":200},"category":{"description":"e.g. Fantasy, Mystery, Poetry","type":"string","minLength":1,"maxLength":100},"from":{"description":"Only releases on/after this date (YYYY-MM-DD)","type":"string","format":"date","pattern":"^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"},"to":{"description":"Only releases on/before this date (YYYY-MM-DD)","type":"string","format":"date","pattern":"^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"},"includePast":{"default":false,"type":"boolean"},"limit":{"default":10,"type":"integer","minimum":1,"maximum":20}}},"annotations":{"title":"Search book releases","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"name":"get_release","title":"Get one release","description":"Details of one release by its id (the number in [brackets] in search results).","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"id":{"type":"integer","exclusiveMinimum":0,"maximum":9007199254740991}},"required":["id"]},"annotations":{"title":"Get one release","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"name":"upcoming_for_author","title":"Upcoming releases by an author","description":"Upcoming releases by one author (a surname alone is enough).","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"author":{"type":"string","minLength":2,"maxLength":200}},"required":["author"]},"annotations":{"title":"Upcoming releases by an author","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"name":"get_my_watchlist","title":"My watchlist","description":"The authors the signed-in user follows, with how many upcoming releases each has.","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{}},"annotations":{"title":"My watchlist","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}},{"name":"add_to_watchlist","title":"Follow an author","description":"Add an author to the user's watchlist. REQUIRES CONFIRMATION: call without confirmationToken first; that changes nothing and returns a token plus a question. Show the question to the user, and only if they say yes call again with the same authorName and the confirmationToken. Tokens expire in 5 minutes.","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"authorName":{"type":"string","minLength":1,"maxLength":200},"confirmationToken":{"type":"string","minLength":20,"maxLength":100}},"required":["authorName"]},"annotations":{"title":"Follow an author","readOnlyHint":false,"destructiveHint":false,"idempotentHint":false,"openWorldHint":false}},{"name":"show_release_calendar","title":"Release calendar","description":"Show an interactive calendar of upcoming releases (grouped by month) that the user can browse and follow authors from. Optional filters: author, category, months ahead.","inputSchema":{"type":"object","$schema":"https://json-schema.org/draft/2020-12/schema","properties":{"author":{"type":"string","minLength":1,"maxLength":200},"category":{"type":"string","minLength":1,"maxLength":100},"months":{"default":3,"type":"integer","minimum":1,"maximum":12}}},"annotations":{"title":"Release calendar","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false},"_meta":{"ui":{"resourceUri":"ui://bibliophile/release-calendar.html"},"ui/resourceUri":"ui://bibliophile/release-calendar.html"}}]},"jsonrpc":"2.0","id":1}
+
+
+
+==================================================================
+## search_releases -> 200
+$ tools/call search_releases {"limit":3}
+
+HTTP/1.1 200 OK
+X-Request-Id: bef53fa6-bf84-425f-9343-331f915806e7
+cache-control: no-store
+connection: keep-alive
+content-type: text/event-stream
+x-accel-buffering: no
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Transfer-Encoding: chunked
+
+event: message
+data: {"result":{"content":[{"type":"text","text":"3 release(s):\n• [53] When the Tide Was Winter by Anouk Yardley, Odile Zamfir (sometime in 2026)\n• [167] The Vineyard of Ash Street by Hana Kestrel (sometime in 2026)\n• [49] A Kingdom for Ash Street by Yusuf Drăgulescu (Nov 2026)"}],"structuredContent":{"status":"ok","releases":[{"id":53,"googleVolumeId":"seed-gen-022","title":"When the Tide Was Winter","authors":["Anouk Yardley","Odile Zamfir"],"releaseDate":"2026-01-01","datePrecision":"year","categories":["Science Fiction"],"thumbnailUrl":null,"updatedAt":"2026-11-17T20:31:46.981Z"},{"id":167,"googleVolumeId":"seed-gen-143","title":"The Vineyard of Ash Street","authors":["Hana Kestrel"],"releaseDate":"2026-01-01","datePrecision":"year","categories":["Biography"],"thumbnailUrl":null,"updatedAt":"2026-11-17T20:31:46.981Z"},{"id":49,"googleVolumeId":"seed-gen-018","title":"A Kingdom for Ash Street","authors":["Yusuf Drăgulescu"],"releaseDate":"2026-11-01","datePrecision":"month","categories":["Young Adult"],"thumbnailUrl":null,"updatedAt":"2026-11-17T20:31:46.981Z"}],"more":true}},"jsonrpc":"2.0","id":1}
+
+
+
+==================================================================
+## add_to_watchlist WITHOUT a confirmation token -> confirmation_required, nothing written
+$ tools/call add_to_watchlist {"authorName":"Evidence Author MCP"}
+
+HTTP/1.1 200 OK
+X-Request-Id: 0895ba17-6ff3-4b6d-9bd5-7a1f0569ba07
+cache-control: no-store
+connection: keep-alive
+content-type: text/event-stream
+x-accel-buffering: no
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Transfer-Encoding: chunked
+
+event: message
+data: {"result":{"content":[{"type":"text","text":"Add “Evidence Author MCP” to your Bibliophile watchlist? Nothing has been changed yet. If the user confirms, call add_to_watchlist again with authorName \"Evidence Author MCP\" and confirmationToken \"tlhGlsNKJN4foWCn7fdlzcljvcqDrirm5cIUTCNOXtg\" (valid until 2026-11-18T05:14:34.612Z)."}],"structuredContent":{"status":"confirmation_required","question":"Add “Evidence Author MCP” to your Bibliophile watchlist?","confirmationToken":"tlhGlsNKJN4foWCn7fdlzcljvcqDrirm5cIUTCNOXtg","expiresAt":"2026-11-18T05:14:34.612Z"}},"jsonrpc":"2.0","id":1}
+
+
+
+==================================================================
+## add_to_watchlist with a made-up confirmation token -> isError, nothing written
+$ tools/call add_to_watchlist {"authorName":"Evidence Author MCP","confirmationToken":"madeUpToken000…"}
+
+HTTP/1.1 200 OK
+X-Request-Id: c728e4c7-3569-4b70-9700-54f23d5f4848
+cache-control: no-store
+connection: keep-alive
+content-type: text/event-stream
+x-accel-buffering: no
+Date: Wed, 18 Nov 2026 05:09:34 GMT
+Transfer-Encoding: chunked
+
+event: message
+data: {"result":{"content":[{"type":"text","text":"That confirmation token isn't valid (expired, already used, or for a different author or user). Start again without a token."}],"isError":true},"jsonrpc":"2.0","id":1}
+
+
+
+
