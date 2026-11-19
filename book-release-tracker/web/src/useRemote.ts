@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiUrl } from "./api/base";
 
 /**
  * Every remote call in the UI goes through this hook, so every call has the
@@ -67,7 +68,7 @@ export function useRemote<T>(
           }
           headers.Authorization = `Bearer ${token}`;
         }
-        const res = await fetch(url, { signal: controller.signal, headers });
+        const res = await fetch(apiUrl(url), { signal: controller.signal, headers });
         const json: unknown = await res.json().catch(() => null);
         if (!res.ok) {
           fail(

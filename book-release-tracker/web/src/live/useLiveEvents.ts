@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "../api/base";
 
 /**
  * Subscribes to GET /api/events (Server-Sent Events) for live catalog changes (F11).
@@ -84,7 +85,7 @@ export function useLiveEvents(onEvent: (e: LiveEvent) => void): { status: LiveSt
     function open() {
       if (stopped) return;
       // A brand-new EventSource doesn't know the last id, so pass it in the URL.
-      const s = new EventSource(lastId > 0 ? `/api/events?lastEventId=${lastId}` : "/api/events");
+      const s = new EventSource(apiUrl(lastId > 0 ? `/api/events?lastEventId=${lastId}` : "/api/events"));
       source = s;
       s.onopen = () => {
         setStatus("live");

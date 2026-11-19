@@ -1,3 +1,5 @@
+import { apiUrl } from "./base";
+
 /**
  * One-off API calls that change data (POST/DELETE). Reads go through
  * useRemote instead. Always resolves — never throws — so every caller has to
@@ -34,7 +36,7 @@ export async function apiRequest<T>(
 
   let res: Response;
   try {
-    res = await fetch(path, init);
+    res = await fetch(apiUrl(path), init);
   } catch {
     return { ok: false, status: null, message: "Couldn’t reach the server. Check your connection and try again." };
   }

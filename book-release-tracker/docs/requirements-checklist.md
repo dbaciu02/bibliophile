@@ -44,13 +44,13 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 
 | # | Requirement | Plan | Step | Code | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| D1 | Public on own domain / course subdomain; DNS records with TTL rationale | _host and domain to choose in step 8_ | 8 | ⬜ | ☐ `dig +trace`, zone export |
-| D2 | HTTPS only, auto-renewal, CAA, HTTP→HTTPS redirect, expiry monitoring that has fired | | 8 | ⬜ | ☐ cert chain, alert evidence |
-| D3 | Separate staging and production (data and secrets); changes go through staging | Separate DBs, secrets and Entra registrations per environment ([entra-id-setup.md §7](entra-id-setup.md)) | 8 | ⬜ | ☐ two URLs, a change stopped at staging |
-| D4 | CI/CD builds, tests, deploys; gated on `/healthz`; rollback; records SHA and image digest | `/healthz` already returns 503 when the DB is down and reports `GIT_SHA` | 1, 8 | 🔶 | ☐ pipeline logs, rollback |
-| D5 | Reproducible build: IaC or exported config; README works on a clean machine | README verified from a clean copy at every step so far | 8 | 🔶 | ☐ clean-clone run |
-| D6 | CDN with a cache policy per content class; no personalized response shared-cached | `/api/me*` and `/healthz` already send `private, no-store` / `no-store` | 8 | 🔶 | ☐ headers showing MISS, HIT, 304, invalidation |
-| D7 | CORS allowlist of exact origins; CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy` | | 8 | ⬜ | ☐ allowed vs refused preflight |
+| D1 | Public on own domain / course subdomain; DNS records with TTL rationale | Subdomains of your Porkbun domain: `bibliophile.`, `staging.bibliophile.`, `api.bibliophile.`, `api.staging.bibliophile.` (CNAMEs to Netlify / Render); TTL rationale in [deployment.md §6b](deployment.md) | 8 | ✅ | ☐ `dig +trace`, records, Porkbun screenshot ([evidence/deployment.md](evidence/deployment.md)) |
+| D2 | HTTPS only, auto-renewal, CAA, HTTP→HTTPS redirect, expiry monitoring that has fired | Let's Encrypt via Netlify/Render (auto-renew, HTTP→HTTPS redirect), HSTS on site and API, CAA on the domain, daily `cert-check` workflow (fails → GitHub email) | 8 | ✅ | ☐ cert chain, redirect, CAA, cert-check run failing at `min_days=120` + email |
+| D3 | Separate staging and production (data and secrets); changes go through staging | Separate Render services, databases + logins (staging refused on prod DB), Entra registrations, Google keys, Netlify sites, GitHub environments; `promote` only accepts a commit healthy on staging | 8 | ✅ | ☐ two `/healthz`, separation check, a broken commit stopped at staging |
+| D4 | CI/CD builds, tests, deploys; gated on `/healthz`; rollback; records SHA and image digest | `.github/workflows/deploy.yml` (test → image → staging → gate), `promote.yml` (gate → prod → gate → auto-rollback), `rollback.yml`; summaries record commit + digest | 1, 8 | ✅ | ☐ green runs with SHA + digest, gate log, a rollback |
+| D5 | Reproducible build: IaC or exported config; README works on a clean machine | `Dockerfile`, workflows, `scripts/deploy/*`, generated Netlify headers; dashboard settings recorded in [deployment.md](deployment.md) | 8 | ✅ | ☐ clean-clone run |
+| D6 | CDN with a cache policy per content class; no personalized response shared-cached | Netlify CDN: hashed `/assets/*` immutable 1 year, HTML `max-age=0, must-revalidate` (ETag → 304), invalidated on every deploy; API user data `private, no-store` | 8 | ✅ | ☐ headers showing MISS, HIT, 304, invalidation |
+| D7 | CORS allowlist of exact origins; CSP, HSTS, `X-Content-Type-Options`, `Referrer-Policy` | `api/src/security.ts` (exact-origin allowlist, preflight 403 for others; headers on every response, tested in `security.test.ts`); site CSP etc. from `web/scripts/write-netlify-files.mjs` | 8 | ✅ | ☐ allowed vs refused preflight, header dumps |
 | D8 | Core Web Vitals measured; one improvement with before/after | | 9 | ⬜ | ☐ Lighthouse / RUM data |
 | D9 | No serious/critical axe violations; keyboard-only operation | Labels on every input, skip link, visible focus, `aria-live` states, `aria-current` nav. axe on Releases / Watchlist / Curate during step 5: 0 violations after fixing one serious label mismatch | 5, 9 | 🔶 | ☐ axe report, keyboard walkthrough |
 | D10 | OpenTelemetry logs, metrics, one trace across ≥2 components; SLI, SLO, an alert that fired | Structured JSON logs with request ids so far | 9 | 🔶 | ☐ dashboard, trace id |
@@ -60,7 +60,7 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 
 | # | Requirement | Plan | Step | Code | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| S1 | Rate limiting on login, write and third-party-backed endpoints | Google-backed routes limited per user (`api/src/rateLimit.ts`); login is Entra's; write routes and the shared/CDN layer in step 8 | 4, 8 | 🔶 | ☐ 429 evidence (test "31st request" now; live in step 8) |
+| S1 | Rate limiting on login, write and third-party-backed endpoints | Per user: Google-backed search 30/min, import 20/min, watchlist writes 30/min, curator writes 120/min, MCP 120/min (`api/src/rateLimit.ts`); login is Entra's own throttling | 4, 8 | ✅ | ☐ 429 tests · ☐ live 429 on staging ([evidence/deployment.md](evidence/deployment.md)) |
 | S2 | Runbook a stranger can follow; Game Day postmortem of a deliberate failure | | 9 | ⬜ | ☐ `docs/runbook.md`, `docs/game-day.md` |
 
 ## 5. Engineering quality

@@ -1,0 +1,37 @@
+# Manual rollback (D4): put an environment's API back on an earlier commit.
+# Every image is kept in GHCR under :sha-<commit>, so any earlier build can be
+# redeployed exactly. The website is rolled back in Netlify (Deploys → pick
+# the earlier deploy → "Publish deploy"); see docs/runbook.md.
+name: rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment
+        type: choice
+        options: [staging, production]
+        required: true
+      sha:
+        description: "Full commit SHA to go back to"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      SHA: ${{ inputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Give the full 40-character commit SHA"; exit 1; }
+          echo "now on: $(scripts/deploy/current-commit.sh "${{ vars.API_URL }}")"
+      - name: Deploy the earlier image
+        run: scripts/deploy/render-deploy.sh "${{ secrets.RENDER_DEPLOY_HOOK }}" "ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bibliophile-api:sha-$SHA"
+      - name: "Gate: /healthz reports that commit"
+        run: scripts/deploy/wait-healthy.sh "${{ vars.API_URL }}" "$SHA" 900
+      - run: echo "### ${{ inputs.environment }} rolled back to \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"

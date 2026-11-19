@@ -162,14 +162,14 @@ Screenshot this (with the token itself redacted) for the F7/F8 evidence.
 | `ENTRA_API_CLIENT_ID` | api (audience check) + web (scope names) | No |
 | `VITE_ENTRA_CLIENT_ID` | web | No |
 
-## 7. Staging and production (later, build step 8)
+## 7. Staging and production (build step 8)
 
 Requirement D3 wants separate secrets and data per environment. The simplest
 clean setup is a second pair of registrations (`booktracker-api-staging`,
 `booktracker-web-staging`) so a staging token can never be accepted by
 production (different `aud`). Add each environment's
 `https://<host>/auth/callback` as a SPA redirect URI on its own web
-registration.
+registration. Step by step: [deployment.md, section 3](deployment.md).
 
 ## 8. MCP (build step 7)
 

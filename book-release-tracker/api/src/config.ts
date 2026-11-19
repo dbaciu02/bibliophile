@@ -17,6 +17,9 @@ const ConfigSchema = z
     GOOGLE_BOOKS_API_KEY: z.preprocess(emptyToUndefined, z.string().regex(/^[A-Za-z0-9_-]{20,100}$/).optional()),
     // Public URL of this API (used in MCP discovery documents). https in production.
     PUBLIC_BASE_URL: z.url().default("http://localhost:3000"),
+    // Exact browser origins allowed by CORS, comma-separated (D7). The website
+    // in dev talks through the Vite proxy (same origin), so none are needed there.
+    CORS_ORIGINS: z.string().default(""),
     // The built MCP App (single HTML file); see mcp-app/.
     MCP_APP_HTML: z.string().default("../mcp-app/dist/release-calendar.html"),
     // Only for demos / Game Day: point at something dead to simulate a Google outage.
@@ -29,6 +32,10 @@ const ConfigSchema = z
   .refine((c) => c.NODE_ENV !== "production" || c.PUBLIC_BASE_URL.startsWith("https://"), {
     message: "PUBLIC_BASE_URL must be https in production",
     path: ["PUBLIC_BASE_URL"],
+  })
+  .refine((c) => c.NODE_ENV !== "production" || c.CORS_ORIGINS.split(",").every((o) => o.trim().startsWith("https://")), {
+    message: "CORS_ORIGINS must list https origins in production",
+    path: ["CORS_ORIGINS"],
   })
   .refine((c) => c.NODE_ENV !== "production" || c.GOOGLE_BOOKS_API_KEY, {
     message: "GOOGLE_BOOKS_API_KEY is required in production",

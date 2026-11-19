@@ -6,6 +6,7 @@ import { isUniqueViolation, withTransaction, type Db } from "../db.js";
 import { HttpError } from "../errors.js";
 import { getRelease, hideRelease, insertRelease, listReleases, updateRelease } from "../repositories/releases.js";
 import { CreateReleaseBody, IdParam, ListReleasesQuery, UpdateReleaseBody } from "../validation.js";
+import { rateLimit } from "../rateLimit.js";
 
 /**
  * /api/releases — the public catalog.
@@ -20,7 +21,9 @@ import { CreateReleaseBody, IdParam, ListReleasesQuery, UpdateReleaseBody } from
  */
 export function releasesRouter(db: Db, verify: TokenVerifier): Router {
   const router = Router();
-  const curatorOnly = requireAuth(verify, { scope: SCOPES.releasesWrite, roles: ["Curator"] });
+  const curatorAuth = requireAuth(verify, { scope: SCOPES.releasesWrite, roles: ["Curator"] });
+  // S1: write routes are limited per user, after the auth check.
+  const writeLimit = rateLimit({ name: "releases-write", limit: 120, windowMs: 60_000 });
 
   router.get("/", async (req, res) => {
     const query = ListReleasesQuery.parse(req.query);
@@ -35,7 +38,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
     res.json(release);
   });
 
-  router.post("/", curatorOnly, async (req, res) => {
+  router.post("/", curatorAuth, writeLimit, async (req, res) => {
     const body = CreateReleaseBody.parse(req.body);
     const actor = principalOf(res.locals);
     try {
@@ -65,7 +68,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
     }
   });
 
-  router.patch("/:id", curatorOnly, async (req, res) => {
+  router.patch("/:id", curatorAuth, writeLimit, async (req, res) => {
     const { id } = IdParam.parse(req.params);
     const changes = UpdateReleaseBody.parse(req.body);
     const actor = principalOf(res.locals);
@@ -91,7 +94,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
     res.json(updated);
   });
 
-  router.delete("/:id", curatorOnly, async (req, res) => {
+  router.delete("/:id", curatorAuth, writeLimit, async (req, res) => {
     const { id } = IdParam.parse(req.params);
     const actor = principalOf(res.locals);
     await withTransaction(db, async (client) => {

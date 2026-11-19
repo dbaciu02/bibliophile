@@ -185,8 +185,7 @@ Paste the result:
 
 What to look for: one `mcp.tool_call` row per call; for the follow, the
 `confirmation_required` row, then a `watchlist.add` row and an `added` row
-with the same user; `[redacted]` instead of the confirmation token; and (if
-you did 8a) `mcp.tool_refused` rows with reason `insufficient_scope`.
+with the same user; `[redacted]` instead of the confirmation token.
 
 ## 5. Interpretation
 The 403 error proves that a read-only token alone can't reach the write tool because the server recognizes the token's limited scope and denies access to any write operations.

@@ -5,6 +5,7 @@ import { withTransaction, type Db } from "../db.js";
 import { HttpError } from "../errors.js";
 import { addItem, getItem, listItems, upsertUser } from "../repositories/watchlist.js";
 import { AddWatchlistBody, IdParam } from "../validation.js";
+import { rateLimit } from "../rateLimit.js";
 
 /**
  * /api/me/watchlist — the signed-in user's followed authors.
@@ -28,7 +29,10 @@ export function watchlistRouter(db: Db, verify: TokenVerifier): Router {
     res.json({ items });
   });
 
-  router.post("/", async (req, res) => {
+  // S1: write routes are limited per user, on top of the auth checks.
+  const writeLimit = rateLimit({ name: "watchlist-write", limit: 30, windowMs: 60_000 });
+
+  router.post("/", writeLimit, async (req, res) => {
     const { authorName } = AddWatchlistBody.parse(req.body);
     const actor = principalOf(res.locals);
     const item = await withTransaction(db, (client) => addItem(client, actor, authorName, res.locals.requestId as string));
@@ -36,7 +40,7 @@ export function watchlistRouter(db: Db, verify: TokenVerifier): Router {
     res.status(201).location(`/api/me/watchlist/${item.id}`).json(item);
   });
 
-  router.delete("/:id", async (req, res) => {
+  router.delete("/:id", writeLimit, async (req, res) => {
     const { id } = IdParam.parse(req.params);
     const actor = principalOf(res.locals);
     await withTransaction(db, async (client) => {

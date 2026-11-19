@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+.git
+.github
+docs
+scripts
+coverage
+**/*.log
+web/*
+!web/package.json
+api/test
+mcp-app/dev-host

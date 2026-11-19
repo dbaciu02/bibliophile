@@ -1,0 +1,45 @@
+# Certificate expiry monitoring (D2). Daily, it connects to every public host
+# and reads the certificate's expiry date. If any expires in fewer than
+# MIN_DAYS days the run fails, and GitHub emails you about the failed run.
+# Netlify and Render renew automatically about 30 days before expiry, so with
+# the default of 21 days this only fires if renewal is broken.
+#
+# To see the alert fire on purpose: Actions → cert-check → Run workflow with
+# min_days 120 (longer than a Let's Encrypt certificate lives).
+name: cert-check
+
+on:
+  schedule:
+    - cron: "17 14 * * *" # daily, 14:17 UTC
+  workflow_dispatch:
+    inputs:
+      min_days:
+        description: Fail if any certificate expires in fewer than this many days
+        default: "21"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      HOSTS: ${{ vars.CERT_HOSTS }} # space-separated, set as a repository variable
+      MIN_DAYS: ${{ inputs.min_days || '21' }}
+    steps:
+      - name: Check certificates
+        run: |
+          [ -n "$HOSTS" ] || { echo "::error::Set the CERT_HOSTS repository variable"; exit 1; }
+          fail=0
+          echo "| host | issuer | expires | days left |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for host in $HOSTS; do
+            cert=$(echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null | openssl x509 -noout -enddate -issuer 2>/dev/null) || cert=""
+            if [ -z "$cert" ]; then echo "::error::$host: no certificate (unreachable?)"; fail=1; continue; fi
+            end=$(echo "$cert" | sed -n 's/^notAfter=//p'); issuer=$(echo "$cert" | sed -n 's/^issuer=.*O *= *\([^,]*\).*/\1/p')
+            days=$(( ( $(date -d "$end" +%s) - $(date +%s) ) / 86400 ))
+            echo "$host: $issuer, expires $end ($days days)"
+            echo "| $host | $issuer | $end | $days |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$days" -lt "$MIN_DAYS" ]; then echo "::error::$host certificate expires in $days days (< $MIN_DAYS)"; fail=1; fi
+          done
+          exit $fail

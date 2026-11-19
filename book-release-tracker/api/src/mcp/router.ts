@@ -5,11 +5,12 @@ import {
   requireBearerAuth,
 } from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
-import { createMcpHandler } from "@modelcontextprotocol/server";
+import { createMcpHandler, type AuthInfo } from "@modelcontextprotocol/server";
 import { Router, type RequestHandler } from "express";
 import { SCOPES, type TokenVerifier } from "../auth.js";
 import type { Db } from "../db.js";
-import { fullScope, mcpTokenVerifier } from "./auth.js";
+import { rateLimit } from "../rateLimit.js";
+import { fullScope, mcpTokenVerifier, principalFromAuth } from "./auth.js";
 import { buildMcpServer } from "./tools.js";
 
 /**
@@ -75,6 +76,13 @@ export function mcpRouter(opts: McpOptions): Router {
     hostHeaderValidation(["localhost", "127.0.0.1", "[::1]", opts.publicBaseUrl.hostname]),
     requireBearerAuth({ verifier: mcpTokenVerifier(opts.verify, opts.apiAudience), resourceMetadataUrl }),
     stampRequestId,
+    // S1: per-user limit on MCP calls (an assistant can loop on tools).
+    rateLimit({
+      name: "mcp",
+      limit: 120,
+      windowMs: 60_000,
+      key: (req) => principalFromAuth((req as { auth?: AuthInfo }).auth)?.subject,
+    }),
     (req, res) => {
       // Never cache MCP responses (D6). The SDK sets "no-cache" on SSE replies,
       // which still lets a shared cache store them, so pin the header to no-store.

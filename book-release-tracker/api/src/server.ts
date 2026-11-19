@@ -4,6 +4,7 @@ import { createTokenVerifier, entraVerifierOptions, rejectAllVerifier } from "./
 import { loadConfig } from "./config.js";
 import { createDb } from "./db.js";
 import { createEventHub } from "./events/hub.js";
+import { parseOrigins } from "./security.js";
 import { loadAppHtml } from "./mcp/tools.js";
 import { createBooksService } from "./googleBooks/cachedBooks.js";
 import { createGoogleBooksClient } from "./googleBooks/client.js";
@@ -45,10 +46,11 @@ const mcp =
       }
     : undefined;
 
-const app = createApp({ db, gitSha: config.GIT_SHA, verifyToken, books, events, ...(mcp ? { mcp } : {}) });
+const corsOrigins = parseOrigins(config.CORS_ORIGINS);
+const app = createApp({ db, gitSha: config.GIT_SHA, verifyToken, books, events, corsOrigins, ...(mcp ? { mcp } : {}) });
 
 const server = app.listen(config.PORT, () => {
-  console.log(JSON.stringify({ level: "info", msg: "api listening", port: config.PORT, commit: config.GIT_SHA }));
+  console.log(JSON.stringify({ level: "info", msg: "api listening", port: config.PORT, commit: config.GIT_SHA, corsOrigins }));
 });
 
 // Graceful shutdown: finish in-flight requests, then close DB connections.

@@ -5,7 +5,7 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 7 of 9 — MCP server and MCP App.** See [Build plan](#build-plan) and the
+**Status: step 8 of 9 — deployment.** See [Build plan](#build-plan) and the
 full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
@@ -19,8 +19,11 @@ web/          React + TypeScript frontend (Vite)
 mcp-app/      MCP App: the release calendar shown inside AI assistants (React + TS)
   dev-host/     minimal MCP Apps host for local testing (never deployed)
 scripts/      curl-evidence.sh (F3), mcp-evidence.sh (F12) transcripts
-docs/         Entra ID setup, secrets inventory, evidence, AI use log
+  deploy/       deploy helpers used by CI (Render deploy, health gate, smoke checks) and DB setup
+docs/         Entra ID setup, deployment guide, secrets inventory, evidence, AI use log
 docker/       local database init
+Dockerfile    the API image (API + migrations + MCP App), built and pushed by CI
+.github/      workflows: deploy (CI + staging), promote (production), rollback, cert-check
 ```
 
 ## Run it on a clean machine
@@ -176,7 +179,7 @@ the `X-Request-Id` header and the server log:
 5. ✅ Frontend pages (releases calendar with search/filters, watchlist, curator import) with loading / empty / error states
 6. ✅ SSE live updates with replay (no lost or duplicated events across reconnects)
 7. ✅ MCP server and MCP App: six tools behind Entra OAuth with per-tool scopes, a confirmed write tool, every call audited; the release calendar as an MCP App — see [docs/mcp.md](docs/mcp.md)
-8. Deployment: staging + production, CI/CD, DNS, HTTPS, CDN, CORS, headers, rate limits
+8. ✅ Deployment: Netlify (site + CDN) and Render (API, Postgres) behind your own domain, staging and production, GitHub Actions with a `/healthz` gate and rollback, CORS allowlist, security headers, write-route rate limits — see [docs/deployment.md](docs/deployment.md)
 9. Observability, performance, accessibility, cost, runbook, Game Day
 
 ## Honest limits
@@ -187,12 +190,18 @@ current here.
 - `npm audit` reports 3 moderate advisories (GHSA-3g3m-2fjr-6pw4,
   GHSA-g3hv-75wg-m249) in `glob`/`minimatch`, pulled in by `node-pg-migrate`.
   They only run when migrations run, on our own `migrations/` folder, never on
-  user input. npm's only fix is downgrading node-pg-migrate to 7.x, so this is
-  accepted for now and rechecked before deployment.
+  user input. Rechecked for deployment (step 8): still the only findings in
+  the production dependencies (`npm audit --omit=dev`). npm's only fix is
+  downgrading node-pg-migrate two major versions, and an override to a newer
+  glob didn't take, so this stays accepted. In the image, migrations run once
+  at container start, against the image's own `migrations/` folder.
 - `npm audit` also reports GHSA-fc5q-39xc-vjpf (high, ReDoS) in `picomatch`,
   used by the build and test tools (Vite, Vitest, vite-plugin-singlefile).
   They only match our own config's file patterns, never user input, and
-  nothing from them ships to the server or browser. No fixed picomatch
-  version exists yet; rechecked before deployment.
+  nothing from them ships to the server or browser (the API image installs
+  production dependencies only). No fixed picomatch version exists yet.
+- Deployment limits (free database expiry, one Postgres instance for both
+  environments, sleeping free API services) are listed in
+  [docs/deployment.md](docs/deployment.md#honest-limits).
 
 AI assistance is logged in [docs/ai-use-log.md](docs/ai-use-log.md).
