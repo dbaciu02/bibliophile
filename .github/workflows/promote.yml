@@ -95,15 +95,15 @@ jobs:
           scripts/deploy/wait-healthy.sh "${{ vars.API_URL }}" "$prev" 900
           echo "### Rolled back to \`$prev\` after a failed health gate on \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
 
-      # 15 Netlify credits per production deploy (D11): skip it if the website
-      # didn't change since the commit production was on.
-      - name: Did the website change since production's commit?
+      # Netlify credits per production deploy (D11): skip it if the website code
+      # is the same as what the LIVE production site was built from.
+      - name: Does the live site need this build?
         id: web
-        env:
-          PREV: ${{ steps.before.outputs.sha }}
         run: |
-          if [ -n "$PREV" ] && git cat-file -e "$PREV^{commit}" 2>/dev/null && git diff --quiet "$PREV" "$SHA" -- web package-lock.json; then
-            echo "No changes under web/ since $PREV: keeping the deployed site."
+          live=$(curl -s --max-time 30 "${{ vars.WEB_URL }}/version.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).commit??"")}catch{}})')
+          echo "live site is on: ${live:-unknown (no version.json yet)}"
+          if [ -n "$live" ] && git cat-file -e "$live^{commit}" 2>/dev/null && git diff --quiet "$live" "$SHA" -- web package-lock.json; then
+            echo "No changes under web/ since $live: keeping the deployed site."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -113,6 +113,7 @@ jobs:
         run: npm ci && npm run build --workspace web
         env:
           CI: "true"
+          BUILD_COMMIT: ${{ inputs.sha }}
           VITE_API_BASE_URL: ${{ vars.API_URL }}
           VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
           VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}

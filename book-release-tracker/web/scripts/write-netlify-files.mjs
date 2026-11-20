@@ -49,6 +49,9 @@ const headers = `/*
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 
+/version.json
+  Cache-Control: no-cache
+
 /
   Cache-Control: public, max-age=0, must-revalidate
 `;
@@ -58,6 +61,11 @@ const headers = `/*
 const redirects = `/*  /index.html  200
 `;
 
+// Which commit this build came from. The pipeline reads it from the live
+// site to decide whether the site needs redeploying (D11: deploys cost credits).
+const commit = process.env.BUILD_COMMIT ?? process.env.GITHUB_SHA ?? "local";
+writeFileSync(`${dist}version.json`, `${JSON.stringify({ commit })}\n`);
+
 writeFileSync(`${dist}_headers`, headers);
 writeFileSync(`${dist}_redirects`, redirects);
-console.log(`wrote dist/_headers and dist/_redirects (API: ${api || "same origin"})`);
+console.log(`wrote dist/_headers, dist/_redirects and dist/version.json (API: ${api || "same origin"}, commit: ${commit})`);
