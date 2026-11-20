@@ -12,6 +12,7 @@ import type { Db } from "../db.js";
 import { rateLimit } from "../rateLimit.js";
 import { fullScope, mcpTokenVerifier, principalFromAuth } from "./auth.js";
 import { buildMcpServer } from "./tools.js";
+import { log } from "../log.js";
 
 /**
  * Mounts the MCP server (Streamable HTTP) at /mcp, plus the OAuth discovery
@@ -60,7 +61,7 @@ export function mcpRouter(opts: McpOptions): Router {
 
   const handler = createMcpHandler(() => buildMcpServer({ db: opts.db, apiAudience: opts.apiAudience, appHtml: opts.appHtml }), {
     legacy: "stateless", // also serve 2025-era MCP clients
-    onerror: (err) => console.error(JSON.stringify({ level: "error", msg: "mcp error", err: String(err) })),
+    onerror: (err) => log("error", "mcp error", { err: String(err) }),
   });
   const serveMcp = toNodeHandler(handler);
 

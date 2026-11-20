@@ -1,5 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { ZodError } from "zod";
+import { trace } from "@opentelemetry/api";
+import { log } from "./log.js";
 
 /**
  * The ONE JSON error shape every route returns (requirement F3):
@@ -83,7 +85,8 @@ export const errorHandler: ErrorRequestHandler = (err: unknown, req, res, _next)
     // Unexpected: log the real error server-side, never send internals to the client.
     status = 500;
     body = { code: "internal", message: "Internal server error", requestId };
-    console.error(JSON.stringify({ level: "error", requestId, path: req.path, err: String(err) }));
+    trace.getActiveSpan()?.recordException(err instanceof Error ? err : String(err));
+    log("error", "unhandled error", { request_id: requestId, path: req.path, err: String(err) });
   }
 
   res.status(status).json({ error: body } satisfies ErrorBody);

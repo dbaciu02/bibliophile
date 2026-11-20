@@ -31,7 +31,7 @@ async function failure(p: Promise<unknown>): Promise<GoogleBooksError> {
 
 // ---------------------------------------------------------------- the client
 describe("Google Books client — timeout, bounded retry, validation (F10)", () => {
-  it("success on the first try: exactly 1 call, key sent as the documented ?key= parameter", async () => {
+  it("success on the first try: exactly 1 call, key sent in the X-Goog-Api-Key header, never in the URL", async () => {
     const { c, stub } = client([{ ok: searchResult(volume("v1")) }]);
     const r = await c.search("dune", 5);
     expect(r.items?.[0]?.id).toBe("v1");
@@ -39,7 +39,9 @@ describe("Google Books client — timeout, bounded retry, validation (F10)", () 
     const url = new URL(stub.calls[0] as string);
     expect(url.pathname).toBe("/books/v1/volumes");
     expect(url.searchParams.get("q")).toBe("dune");
-    expect(url.searchParams.get("key")).toBe("test-key-not-real-0000");
+    expect(url.searchParams.has("key")).toBe(false);
+    expect(stub.calls[0]).not.toContain("test-key-not-real-0000");
+    expect(stub.headers[0]?.["X-Goog-Api-Key"]).toBe("test-key-not-real-0000");
   });
 
   it("503, 503, then 200: retries twice and succeeds — 3 calls", async () => {

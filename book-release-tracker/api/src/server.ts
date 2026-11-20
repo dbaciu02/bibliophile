@@ -8,6 +8,7 @@ import { parseOrigins } from "./security.js";
 import { loadAppHtml } from "./mcp/tools.js";
 import { createBooksService } from "./googleBooks/cachedBooks.js";
 import { createGoogleBooksClient } from "./googleBooks/client.js";
+import { log } from "./log.js";
 
 const config = loadConfig();
 const db = createDb(config.DATABASE_URL);
@@ -19,19 +20,22 @@ const verifyToken =
     ? createTokenVerifier(entraVerifierOptions(config.ENTRA_TENANT_ID, config.ENTRA_API_CLIENT_ID))
     : rejectAllVerifier;
 if (verifyToken === rejectAllVerifier) {
-  console.warn(JSON.stringify({ level: "warn", msg: "Entra ID not configured: all protected routes will return 401" }));
+  log("warn", "Entra ID not configured: all protected routes will return 401");
 }
 
 if (!config.GOOGLE_BOOKS_API_KEY) {
-  console.warn(JSON.stringify({ level: "warn", msg: "GOOGLE_BOOKS_API_KEY not set: using Google's small anonymous quota" }));
+  log("warn", "GOOGLE_BOOKS_API_KEY not set: using Google's small anonymous quota");
 }
 if (config.GOOGLE_BOOKS_BASE_URL) {
-  console.warn(JSON.stringify({ level: "warn", msg: "GOOGLE_BOOKS_BASE_URL overridden (outage simulation?)", baseUrl: config.GOOGLE_BOOKS_BASE_URL }));
+  log("warn", "GOOGLE_BOOKS_BASE_URL overridden (outage simulation?)", { baseUrl: config.GOOGLE_BOOKS_BASE_URL });
 }
-const books = createBooksService(db, createGoogleBooksClient({
+const books = createBooksService(
+  db,
+  createGoogleBooksClient({
     apiKey: config.GOOGLE_BOOKS_API_KEY,
     ...(config.GOOGLE_BOOKS_BASE_URL ? { baseUrl: config.GOOGLE_BOOKS_BASE_URL } : {}),
-  }));
+  }),
+);
 
 const events = await createEventHub(db, config.DATABASE_URL);
 
@@ -50,17 +54,22 @@ const corsOrigins = parseOrigins(config.CORS_ORIGINS);
 const app = createApp({ db, gitSha: config.GIT_SHA, verifyToken, books, events, corsOrigins, ...(mcp ? { mcp } : {}) });
 
 const server = app.listen(config.PORT, () => {
-  console.log(JSON.stringify({ level: "info", msg: "api listening", port: config.PORT, commit: config.GIT_SHA, corsOrigins }));
+  log("info", "api listening", { port: config.PORT, commit: config.GIT_SHA, corsOrigins });
 });
 
 // Graceful shutdown: finish in-flight requests, then close DB connections.
 // Hosts send SIGTERM on every redeploy.
 function shutdown(signal: string): void {
-  console.log(JSON.stringify({ level: "info", msg: "shutting down", signal }));
+  log("info", "shutting down", { signal });
   // Open SSE streams never finish on their own, so close them explicitly.
   server.closeAllConnections();
   server.close(() => {
-    void events.close().then(() => db.end()).then(() => process.exit(0));
+    const flushTelemetry = (globalThis as { __telemetryShutdown?: () => Promise<void> }).__telemetryShutdown ?? (async () => {});
+    void events
+      .close()
+      .then(() => db.end())
+      .then(() => flushTelemetry().catch(() => {})) // send the last spans/metrics/logs
+      .then(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }

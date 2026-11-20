@@ -16,6 +16,7 @@ import { getRelease, listReleases, type Release } from "../repositories/releases
 import { addItem, isWatching, listItems, upsertUser } from "../repositories/watchlist.js";
 import { principalFromAuth } from "./auth.js";
 import { consumeConfirmation, issueConfirmation } from "./confirmations.js";
+import { log } from "../log.js";
 
 /**
  * The MCP tools (F12) and the MCP App resource (F13).
@@ -156,7 +157,7 @@ export function buildMcpServer(deps: McpDeps): McpServer {
           if (err instanceof HttpError) result = fail(err.message);
           else {
             // Never hand internal details (SQL, stack) to the model; log them instead.
-            console.error(JSON.stringify({ level: "error", msg: "mcp tool failed", tool, requestId, err: String(err) }));
+            log("error", "mcp tool failed", { tool, request_id: requestId, err: String(err) });
             result = fail(`Something went wrong on our side (request ${requestId}). Please try again.`);
           }
         }

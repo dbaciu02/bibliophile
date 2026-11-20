@@ -16,6 +16,7 @@ private channel, and every one is rotated afterwards.
 | `RENDER_DEPLOY_HOOK` | CI triggering a deploy of one image (D4) | staging, production (one per service) | GitHub → Environments → staging / production → Secrets | Render → service → Settings → Deploy Hook → Regenerate, update the GitHub secret |
 | `NETLIFY_AUTH_TOKEN` | CI uploading the website (D4) | CI only | GitHub → repository Secrets | Netlify → User settings → Applications → revoke, create new, update secret |
 | GHCR pull token (classic PAT, `read:packages` only) | Render pulling the private API image | both services | Render → Registry Credentials | GitHub → Developer settings → revoke, create new, update Render |
+| `OTEL_EXPORTER_OTLP_HEADERS` (contains a Grafana Cloud access token) | API sending telemetry (D10) | staging, production (one token each) | Render → each service → Environment | Grafana Cloud → Administration → Access policies → delete the token, create a new one, update Render |
 | `GITHUB_TOKEN` | CI pushing/reading the image in GHCR | CI only | Created by GitHub for each run; expires with the run | Nothing to rotate |
 
 `NETLIFY_SITE_ID` is stored as a GitHub secret only to keep it out of logs;

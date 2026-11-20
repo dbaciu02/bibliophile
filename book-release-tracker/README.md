@@ -5,7 +5,7 @@ upcoming book releases, a curator-managed catalog fed by the Google Books API,
 and a personal author watchlist — built to meet the course's final web
 application requirements.
 
-**Status: step 8 of 9 — deployment.** See [Build plan](#build-plan) and the
+**Status: step 9 of 9 — operations (observability, performance, accessibility, cost, runbook, Game Day).** See [Build plan](#build-plan) and the
 full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
@@ -20,7 +20,9 @@ mcp-app/      MCP App: the release calendar shown inside AI assistants (React + 
   dev-host/     minimal MCP Apps host for local testing (never deployed)
 scripts/      curl-evidence.sh (F3), mcp-evidence.sh (F12) transcripts
   deploy/       deploy helpers used by CI (Render deploy, health gate, smoke checks) and DB setup
-docs/         Entra ID setup, deployment guide, secrets inventory, evidence, AI use log
+  traffic.sh    steady test traffic (Game Day, dashboard); lh-summary.mjs: Lighthouse before/after table
+docs/         setup guides (Entra, deployment, observability), architecture, cost, runbook,
+              Game Day, secrets inventory, evidence, AI use log
 docker/       local database init
 Dockerfile    the API image (API + migrations + MCP App), built and pushed by CI
 .github/      workflows: deploy (CI + staging), promote (production), rollback, cert-check
@@ -180,7 +182,7 @@ the `X-Request-Id` header and the server log:
 6. ✅ SSE live updates with replay (no lost or duplicated events across reconnects)
 7. ✅ MCP server and MCP App: six tools behind Entra OAuth with per-tool scopes, a confirmed write tool, every call audited; the release calendar as an MCP App — see [docs/mcp.md](docs/mcp.md)
 8. ✅ Deployment: Netlify (site + CDN) and Render (API, Postgres) behind your own domain, staging and production, GitHub Actions with a `/healthz` gate and rollback, CORS allowlist, security headers, write-route rate limits — see [docs/deployment.md](docs/deployment.md)
-9. Observability, performance, accessibility, cost, runbook, Game Day
+9. ✅ Operations: OpenTelemetry → Grafana Cloud (traces across API → Postgres → Google Books, SLOs, alert), cost model, runbook, Game Day plan, architecture diagrams — see [docs/observability.md](docs/observability.md), [docs/cost.md](docs/cost.md), [docs/runbook.md](docs/runbook.md), [docs/game-day.md](docs/game-day.md), [docs/architecture.md](docs/architecture.md). Evidence for D8–D11 and S2 is still to be collected on the live site.
 
 ## Honest limits
 

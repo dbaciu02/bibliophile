@@ -1,6 +1,7 @@
 import pg from "pg";
 import type { Db } from "../db.js";
 import { NOTIFY_CHANNEL } from "./emit.js";
+import { log as logLine } from "../log.js";
 
 /**
  * Fans catalog events out to every open SSE connection on this server (F11).
@@ -53,7 +54,7 @@ export async function createEventHub(
   databaseUrl: string,
   opts: { log?: (msg: string, extra?: object) => void } = {},
 ): Promise<EventHub> {
-  const log = opts.log ?? ((msg, extra) => console.log(JSON.stringify({ level: "info", msg, ...extra })));
+  const log = opts.log ?? ((msg, extra) => logLine("info", msg, (extra ?? {}) as Record<string, unknown>));
   const subscribers = new Set<Subscriber>();
   let listener: pg.Client | null = null;
   let closed = false;

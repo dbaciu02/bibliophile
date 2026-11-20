@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import { createRemoteJWKSet, errors as joseErrors, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { HttpError } from "./errors.js";
+import { log } from "./log.js";
 
 /**
  * Server-side access-token validation (F8) and role enforcement (F9).
@@ -96,16 +97,12 @@ export const rejectAllVerifier: TokenVerifier = async () => {
 function logTokenRejection(requestId: string | undefined, err: unknown): void {
   if (process.env.NODE_ENV === "test") return; // the tests assert on the 401 instead
   const e = err as { code?: unknown; claim?: unknown; message?: unknown };
-  console.warn(
-    JSON.stringify({
-      level: "warn",
-      msg: "token rejected",
-      requestId,
-      reason: typeof e.code === "string" ? e.code : "unknown", // e.g. ERR_JWT_EXPIRED
-      claim: typeof e.claim === "string" ? e.claim : undefined, // e.g. "iss" or "aud"
-      detail: typeof e.message === "string" ? e.message : String(err),
-    }),
-  );
+  log("warn", "token rejected", {
+    request_id: requestId,
+    reason: typeof e.code === "string" ? e.code : "unknown", // e.g. ERR_JWT_EXPIRED
+    claim: typeof e.claim === "string" ? e.claim : undefined, // e.g. "iss" or "aud"
+    detail: typeof e.message === "string" ? e.message : String(err),
+  });
 }
 
 function bearerToken(header: string | undefined): string | null {

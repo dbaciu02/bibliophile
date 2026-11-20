@@ -1,4 +1,5 @@
 import pg from "pg";
+import { log } from "./log.js";
 
 // Return DATE columns as plain "YYYY-MM-DD" strings. By default pg turns them
 // into JS Date objects at local midnight, which shifts the day in some time
@@ -9,13 +10,21 @@ export type Db = pg.Pool;
 export type DbClient = pg.PoolClient;
 
 export function createDb(databaseUrl: string): Db {
-  return new pg.Pool({
+  const pool = new pg.Pool({
     connectionString: databaseUrl,
     max: 10,
     connectionTimeoutMillis: 3_000,
     // Stop runaway queries instead of letting them hold a connection forever.
     statement_timeout: 5_000,
   });
+  // When the database drops an IDLE connection (restart, failover, a killed
+  // session), the pool emits "error". Without a listener Node treats that as
+  // an unhandled error and the whole API process exits. With it, the broken
+  // connection is discarded, requests that need the database fail with 500 /
+  // healthz 503 while it's down, and everything recovers by itself when it's
+  // back. (Found while rehearsing the Game Day: S2.)
+  pool.on("error", (err) => log("warn", "database connection lost (pool will reconnect)", { err: String(err) }));
+  return pool;
 }
 
 /**

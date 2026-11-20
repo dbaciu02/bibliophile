@@ -12,8 +12,9 @@ import { GoogleVolume, GoogleVolumeList } from "./schema.js";
  *   - VALIDATES the JSON with zod before anyone uses it.
  *
  * The API key comes from config (the host's secret store in production). It is
- * sent as the documented `key` query parameter, so request URLs are never
- * logged or put in error messages.
+ * sent in the `X-Goog-Api-Key` header, never in the URL: tracing records
+ * outgoing URLs (D10), so a key in the query string would end up in the
+ * telemetry backend.
  *
  * Caching lives one layer up (cachedBooks.ts); this file only talks to Google.
  */
@@ -64,6 +65,7 @@ export interface GoogleBooksClient {
 
 export function createGoogleBooksClient(opts: GoogleBooksOptions = {}): GoogleBooksClient {
   const doFetch: FetchFn = opts.fetch ?? ((url, init) => fetch(url, init));
+  const headers: Record<string, string> = { Accept: "application/json", ...(opts.apiKey ? { "X-Goog-Api-Key": opts.apiKey } : {}) };
   const baseUrl = opts.baseUrl ?? "https://www.googleapis.com/books/v1";
   const timeoutMs = opts.timeoutMs ?? 3_000;
   const maxRetries = opts.maxRetries ?? 2;
@@ -84,7 +86,7 @@ export function createGoogleBooksClient(opts: GoogleBooksOptions = {}): GoogleBo
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let res: Response;
     try {
-      res = await doFetch(url, { signal: controller.signal, headers: { Accept: "application/json" } });
+      res = await doFetch(url, { signal: controller.signal, headers });
     } catch (err) {
       throw new RetryableError(controller.signal.aborted ? `timed out after ${timeoutMs} ms` : "network error");
     } finally {
@@ -115,7 +117,6 @@ export function createGoogleBooksClient(opts: GoogleBooksOptions = {}): GoogleBo
     }
 
     const query = new URLSearchParams(params);
-    if (opts.apiKey) query.set("key", opts.apiKey);
     const url = `${baseUrl}${path}?${query.toString()}`;
 
     let lastError = "unknown error";

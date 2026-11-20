@@ -39,5 +39,6 @@ WORKDIR /app/api
 EXPOSE 10000
 # Apply pending migrations (node-pg-migrate takes a lock, so two starting
 # instances can't both run them), then replace the shell with the server so
-# it receives SIGTERM directly and shuts down gracefully.
-CMD ["sh", "-c", "/app/node_modules/.bin/node-pg-migrate up --migrations-dir migrations && exec node dist/server.js"]
+# it receives SIGTERM directly and shuts down gracefully. telemetry.js loads
+# first so OpenTelemetry can instrument http, Express, pg and fetch (D10).
+CMD ["sh", "-c", "/app/node_modules/.bin/node-pg-migrate up --migrations-dir migrations && exec node --import ./dist/telemetry.js dist/server.js"]

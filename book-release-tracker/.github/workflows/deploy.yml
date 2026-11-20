@@ -95,6 +95,8 @@ jobs:
       url: ${{ vars.WEB_URL }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # to compare with the previous push (website changed?)
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -121,7 +123,23 @@ jobs:
         run: scripts/deploy/render-deploy.sh "${{ secrets.RENDER_DEPLOY_HOOK }}" "${{ needs.image.outputs.image }}@${{ needs.image.outputs.digest }}"
       - name: "Gate: staging /healthz reports this commit"
         run: scripts/deploy/wait-healthy.sh "${{ vars.API_URL }}" "${{ github.sha }}" 900
+      # Netlify charges 15 credits per production deploy and the free plan has
+      # 300 a month (D11), so the site is only redeployed when it changed.
+      - name: Did the website change in this push?
+        id: web
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "$BEFORE" ] && ! echo "$BEFORE" | grep -q '^0*$' \
+             && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+             && git diff --quiet "$BEFORE" "$GITHUB_SHA" -- web package-lock.json; then
+            echo "No changes under web/ since $BEFORE: keeping the deployed site."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Build website for staging
+        if: steps.web.outputs.changed == 'true'
         run: npm ci && npm run build --workspace web
         env:
           CI: "true"
@@ -130,6 +148,7 @@ jobs:
           VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
           VITE_ENTRA_API_CLIENT_ID: ${{ vars.VITE_ENTRA_API_CLIENT_ID }}
       - name: Deploy website to Netlify (staging)
+        if: steps.web.outputs.changed == 'true'
         run: >-
           npx --yes netlify-cli@latest deploy --dir web/dist --prod
           --site "${{ secrets.NETLIFY_SITE_ID }}" --message "${{ github.sha }}"

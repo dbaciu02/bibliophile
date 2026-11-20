@@ -15,14 +15,17 @@ export type Behaviour =
 export interface GoogleStub {
   fetch: FetchFn;
   calls: string[]; // every URL requested, in order
+  headers: Record<string, string>[]; // the headers of each call
 }
 
 export function stubGoogle(...script: Behaviour[]): GoogleStub {
   const calls: string[] = [];
+  const sentHeaders: Record<string, string>[] = [];
   let i = 0;
 
   const fetch: FetchFn = (url, init) => {
     calls.push(url);
+    sentHeaders.push(init.headers);
     const b = script[Math.min(i, script.length - 1)];
     i += 1;
     if (!b) throw new Error("stubGoogle needs at least one behaviour");
@@ -42,7 +45,7 @@ export function stubGoogle(...script: Behaviour[]): GoogleStub {
     return Promise.resolve(Response.json(b.body ?? { error: { code: b.status } }, { status: b.status, headers }));
   };
 
-  return { fetch, calls };
+  return { fetch, calls, headers: sentHeaders };
 }
 
 /** A realistic (trimmed) Google Books volume. */

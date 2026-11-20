@@ -22,11 +22,11 @@ GitHub username **in lowercase** everywhere below.
 
 | | Production | Staging |
 | --- | --- | --- |
-| Website | `https://bibliophile.dorabaciu.dev` | `https://staging.bibliophile.dorabaciu.dev` |
-| API | `https://api.bibliophile.dorabaciu.dev` | `https://api.staging.bibliophile.dorabaciu.dev` |
+| Website | `https://bibliophile.<domain>` | `https://staging.bibliophile.<domain>` |
+| API | `https://api.bibliophile.<domain>` | `https://api.staging.bibliophile.<domain>` |
 | Render service | `bibliophile-api` | `bibliophile-api-staging` |
 | Database / login | `bibliophile_prod` | `bibliophile_staging` |
-| Netlify site | `bibliophile-dbaciu02` | `bibliophile-staging-dbaciu02` |
+| Netlify site | `bibliophile-<you>` | `bibliophile-staging-<you>` |
 | Entra registrations | `booktracker-api`, `booktracker-web` (existing) | `booktracker-api-staging`, `booktracker-web-staging` (new) |
 
 Order matters (each step needs something from the one before). Budget about
@@ -40,7 +40,7 @@ Commit everything and push to `main`. In GitHub → **Actions**, the `deploy`
 workflow runs: `test` and `image` should go green; `staging` fails with
 "Not set for the staging environment: …". That's expected until section 8.
 
-The image is now at `ghcr.io/dbaciu02/bibliophile-api:sha-<commit>` (GitHub →
+The image is now at `ghcr.io/<you>/bibliophile-api:sha-<commit>` (GitHub →
 your profile → **Packages**). Note the full commit SHA from the run's
 summary; you need it in 4c.
 
@@ -114,6 +114,8 @@ credential from 4a. Do it twice:
 | `CORS_ORIGINS` | `https://staging.bibliophile.<domain>` | `https://bibliophile.<domain>` |
 
 Mark `DATABASE_URL` and `GOOGLE_BOOKS_API_KEY` as secret if Render offers it.
+Telemetry variables (`OTEL_*`, `DEPLOY_ENV`) come later, from
+[observability.md](observability.md); the API runs fine without them.
 The Health Check Path matters: Render only switches traffic to a new deploy
 once `/healthz` answers 200, so a broken build keeps the old one serving.
 

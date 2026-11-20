@@ -7,6 +7,7 @@ import { errorHandler, notFound } from "./errors.js";
 import type { EventHub } from "./events/hub.js";
 import { mcpRouter, type McpOptions } from "./mcp/router.js";
 import { requestId } from "./requestId.js";
+import { observeRequests } from "./observability.js";
 import { cors, securityHeaders } from "./security.js";
 import { booksRouter } from "./routes/books.js";
 import { eventsRouter } from "./routes/events.js";
@@ -45,6 +46,7 @@ export function createApp({ db, gitSha, verifyToken, books, events, eventsHeartb
   app.set("query parser", "simple"); // ?a=1 only; no nested objects from ?a[b]=1
 
   app.use(requestId);
+  app.use(observeRequests);
   app.use(securityHeaders);
   app.use(cors(corsOrigins));
   app.use(express.json({ limit: "100kb" }));
