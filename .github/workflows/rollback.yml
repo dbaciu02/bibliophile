@@ -2,6 +2,9 @@
 # Every image is kept in GHCR under :sha-<commit>, so any earlier build can be
 # redeployed exactly. The website is rolled back in Netlify (Deploys → pick
 # the earlier deploy → "Publish deploy"); see docs/runbook.md.
+# The project lives in ./book-release-tracker/ of this repository, so every `run:` step
+# starts there (defaults.run.working-directory) and file paths given to
+# actions are prefixed with book-release-tracker/.
 name: rollback
 
 on:
@@ -18,6 +21,10 @@ on:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: book-release-tracker
 
 jobs:
   rollback:

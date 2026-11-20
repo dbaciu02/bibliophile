@@ -5,6 +5,9 @@
 #   -> gate: staging /healthz must report this commit, then smoke checks.
 # Production is a separate, manual step (promote.yml) that only accepts a
 # commit that is currently healthy on staging (D3: changes go through staging).
+# The project lives in ./book-release-tracker/ of this repository, so every `run:` step
+# starts there (defaults.run.working-directory) and file paths given to
+# actions are prefixed with book-release-tracker/.
 name: deploy
 
 on:
@@ -19,6 +22,10 @@ concurrency:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    working-directory: book-release-tracker
 
 jobs:
   test:
@@ -41,6 +48,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: book-release-tracker/package-lock.json
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build:mcp-app
@@ -69,7 +77,7 @@ jobs:
       - id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: book-release-tracker
           push: true
           build-args: GIT_SHA=${{ github.sha }}
           tags: ${{ steps.ref.outputs.image }}:sha-${{ github.sha }}
@@ -101,6 +109,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: book-release-tracker/package-lock.json
       - name: Check the staging environment is configured
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}

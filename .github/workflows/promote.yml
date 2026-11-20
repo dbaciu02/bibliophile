@@ -5,6 +5,9 @@
 # production change has gone through staging first. After deploying it waits
 # for production /healthz to report the new commit; if that never happens it
 # rolls the API back to the commit production was on before, automatically.
+# The project lives in ./book-release-tracker/ of this repository, so every `run:` step
+# starts there (defaults.run.working-directory) and file paths given to
+# actions are prefixed with book-release-tracker/.
 name: promote
 
 on:
@@ -21,6 +24,10 @@ concurrency:
 permissions:
   contents: read
   packages: read
+
+defaults:
+  run:
+    working-directory: book-release-tracker
 
 jobs:
   production:
@@ -39,6 +46,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: book-release-tracker/package-lock.json
 
       - name: "Gate: this commit is healthy on staging"
         run: |
