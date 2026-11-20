@@ -21,16 +21,18 @@ the site when `web/` changed).
 ## Arithmetic per provider
 
 **Netlify (website + CDN).** Credits: 20 per GB, 2 per 10,000 requests, 15
-per production deploy. Free = 300 credits a month, as a **hard cap**: it
-stops rather than charges.
+per production deploy. **This project is on a paid plan at $7 a month**
+(upgraded during setup: the free plan allows only 3 custom-domain changes
+per hour and 300 credits a month). The figures below assume it includes
+1,000 credits a month; check Netlify → Billing for the exact allowance.
 
 | | 1× | 10× | 100× |
 | --- | --- | --- | --- |
 | Bandwidth | 2,700 × 0.15 MB = 0.4 GB → **8** | 4.05 GB → **81** | 40.5 GB → **810** |
 | Requests | 10,800 → **2** | 108,000 → **22** | 1,080,000 → **216** |
 | Deploys | 10 × 15 = **150** | **150** | **150** |
-| Credits / month | **160** (free) | **253** (free, tight) | **1,176** |
-| Cost | $0 | $0 | Personal $9 (1,000 credits) + one 500-credit pack $5 = **$14** |
+| Credits / month | **160** | **253** | **1,176** |
+| Cost | **$7** (plan) | **$7** | $7 + one 500-credit pack $5 = **$12** |
 
 **Render (API + Postgres).** Free web services sleep after 15 minutes idle
 and share 750 instance hours a month per workspace. An always-on Starter
@@ -72,24 +74,26 @@ existing site. Not counted.
 
 | | 1× | 10× | 100× |
 | --- | --- | --- | --- |
-| During the course (first 30 days) | **$0** | — | — |
-| Steady state, per month | **$6** | **$13** | **$27** |
-| Biggest line | Postgres after the free 30 days | Always-on API | Netlify bandwidth |
-| What breaks first if not paid | the database is deleted (day 30 + 14) | latency SLO (cold starts) | the website stops at the credit cap |
+| During the course (first 30 days) | **$7** (Netlify) | — | — |
+| Steady state, per month | **$13** | **$20** | **$25** |
+| Biggest line | Netlify plan, then Postgres after the free 30 days | Always-on API + Netlify | Netlify (bandwidth credits) |
+| What breaks first if not paid | the database is deleted (day 30 + 14) | latency SLO (cold starts) | the website stops when credits run out |
 
-Cost grows roughly with **bandwidth**, not requests or users: at 100×, 70%
-of Netlify credits are bandwidth. The cheapest lever is shrinking the bundle
+Arithmetic: 1× = Netlify $7 + Postgres $6 = $13; 10× = $7 + $6 + Starter API
+$7 = $20; 100× = ($7 + $5) + $6 + $7 = $25. Cost grows roughly with
+**bandwidth**, not requests or users: at 100×, 70% of Netlify credits are
+bandwidth. The cheapest lever is shrinking the bundle
 (the D8 improvement). Next is longer browser caching of the hashed assets
 (already immutable for a year, so returning visitors cost almost nothing;
 the "worst case" above assumes every visit is a first visit).
 
 ## Budget and free-tier guards (the D11 evidence)
 
-Nothing here can surprise-bill:
+Only Netlify is paid ($7/month, a fixed plan price); nothing here can surprise-bill:
 
 | Provider | Guard | Screenshot for the evidence |
 | --- | --- | --- |
-| Netlify | Free plan: hard cap at 300 credits, no overage | Team → Billing → Usage (credits used this cycle) |
+| Netlify | Paid plan ($7/month) with a fixed credit allowance; usage emails as it fills up | Team → Billing → Usage (credits used this cycle) and the plan |
 | Render | Hobby workspace, free instances; no paid service without choosing one | Workspace → Billing (current month $0) |
 | GitHub | Spending limit $0 for Actions and Packages | Settings → Billing and plans → Spending limits |
 | Grafana Cloud | Free plan, no card on file | Administration → Usage / Billing |

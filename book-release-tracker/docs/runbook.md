@@ -50,7 +50,7 @@ Secrets and where they live: [secrets.md](secrets.md). Full setup:
 | `promote` red, summary says "Rolled back" | New build failed its health check in production; the pipeline already restored the previous one | Production is fine. Investigate on staging; don't re-promote that commit |
 | `cert-check` red | A certificate expires in < 21 days: automatic renewal failed | Netlify → Domain management → HTTPS → **Renew certificate**; Render → Custom Domains → re-verify. Check the CAA records still allow `letsencrypt.org` and `pki.goog` (`dig CAA <domain>`) |
 | Pushing images fails: "storage limit" | GitHub Packages free storage (500 MB) full | GitHub → your profile → Packages → `bibliophile-api` → delete old versions (keep the last 10) |
-| Website deploy fails: credits exhausted | Netlify free plan used its 300 credits this month | Wait for the new cycle, or upgrade the Netlify plan; the site already deployed keeps serving |
+| Website deploy fails: credits exhausted | Netlify used this month's plan credits | Netlify → Billing: buy a credit pack or wait for the new cycle; the site already deployed keeps serving |
 
 ## Database down
 

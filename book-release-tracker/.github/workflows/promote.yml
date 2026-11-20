@@ -1,0 +1,137 @@
+# Release to PRODUCTION (D3, D4). Manual on purpose: run it from
+# Actions → promote → Run workflow, with the commit to release.
+#
+# It refuses any commit that is not currently healthy on staging, so every
+# production change has gone through staging first. After deploying it waits
+# for production /healthz to report the new commit; if that never happens it
+# rolls the API back to the commit production was on before, automatically.
+# The project lives in ./book-release-tracker/ of this repository, so every `run:` step
+# starts there (defaults.run.working-directory) and file paths given to
+# actions are prefixed with book-release-tracker/.
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full commit SHA to release (shown in the staging run's summary)"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+
+defaults:
+  run:
+    working-directory: book-release-tracker
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.WEB_URL }}
+    env:
+      SHA: ${{ inputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0 # to compare with what production runs now
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: book-release-tracker/package-lock.json
+
+      - name: "Gate: this commit is healthy on staging"
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Give the full 40-character commit SHA"; exit 1; }
+          on_staging=$(scripts/deploy/current-commit.sh "${{ vars.STAGING_API_URL }}")
+          echo "staging is on: ${on_staging:-unknown}"
+          if [ "$on_staging" != "$SHA" ]; then
+            echo "::error::$SHA is not what staging is running (${on_staging:-unreachable}). Deploy it to staging first."
+            exit 1
+          fi
+
+      - name: Record what production runs now (rollback target)
+        id: before
+        run: |
+          prev=$(scripts/deploy/current-commit.sh "${{ vars.API_URL }}")
+          echo "production is on: ${prev:-unknown}"
+          echo "sha=$prev" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve the image digest for this commit
+        id: image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/bibliophile-api"
+          digest=$(docker buildx imagetools inspect "$image:sha-$SHA" --format '{{json .Manifest}}' | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).digest))')
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "image $image:sha-$SHA = $digest"
+
+      - name: Deploy API image to Render (production)
+        id: deploy
+        run: scripts/deploy/render-deploy.sh "${{ secrets.RENDER_DEPLOY_HOOK }}" "${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}"
+      - name: "Gate: production /healthz reports this commit"
+        id: gate
+        run: scripts/deploy/wait-healthy.sh "${{ vars.API_URL }}" "$SHA" 900
+
+      - name: ROLLBACK the API to the previous commit
+        if: failure() && steps.deploy.outcome == 'success' && steps.before.outputs.sha != '' && steps.before.outputs.sha != 'unknown'
+        run: |
+          prev="${{ steps.before.outputs.sha }}"
+          echo "::warning::Production did not become healthy on $SHA; rolling back to $prev"
+          scripts/deploy/render-deploy.sh "${{ secrets.RENDER_DEPLOY_HOOK }}" "${{ steps.image.outputs.image }}:sha-$prev"
+          scripts/deploy/wait-healthy.sh "${{ vars.API_URL }}" "$prev" 900
+          echo "### Rolled back to \`$prev\` after a failed health gate on \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # Netlify credits per production deploy (D11): skip it if the website code
+      # is the same as what the LIVE production site was built from.
+      - name: Does the live site need this build?
+        id: web
+        run: |
+          live=$(curl -s --max-time 30 "${{ vars.WEB_URL }}/version.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).commit??"")}catch{}})')
+          echo "live site is on: ${live:-unknown (no version.json yet)}"
+          if [ -n "$live" ] && git cat-file -e "$live^{commit}" 2>/dev/null && git diff --quiet "$live" "$SHA" -- web package-lock.json; then
+            echo "No changes under web/ since $live: keeping the deployed site."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build website for production
+        if: steps.web.outputs.changed == 'true'
+        run: npm ci && npm run build --workspace web
+        env:
+          CI: "true"
+          BUILD_COMMIT: ${{ inputs.sha }}
+          VITE_API_BASE_URL: ${{ vars.API_URL }}
+          VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
+          VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
+          VITE_ENTRA_API_CLIENT_ID: ${{ vars.VITE_ENTRA_API_CLIENT_ID }}
+      - name: Deploy website to Netlify (production)
+        if: steps.web.outputs.changed == 'true'
+        run: >-
+          npx --yes netlify-cli@latest deploy --dir web/dist --prod
+          --site "${{ secrets.NETLIFY_SITE_ID }}" --message "$SHA"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      - name: Smoke checks
+        run: scripts/deploy/smoke.sh "${{ vars.WEB_URL }}" "${{ vars.API_URL }}"
+      - name: Record
+        if: success()
+        run: |
+          {
+            echo "### Production is on \`$SHA\`"
+            echo "- image: \`${{ steps.image.outputs.image }}@${{ steps.image.outputs.digest }}\`"
+            echo "- previous commit (rollback target): \`${{ steps.before.outputs.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
