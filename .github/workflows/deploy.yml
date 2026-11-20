@@ -159,9 +159,14 @@ jobs:
           VITE_ENTRA_API_CLIENT_ID: ${{ vars.VITE_ENTRA_API_CLIENT_ID }}
       - name: Deploy website to Netlify (staging)
         if: steps.web.outputs.changed == 'true'
-        run: >-
-          npx --yes netlify-cli@latest deploy --dir web/dist --prod
-          --site "${{ secrets.NETLIFY_SITE_ID }}" --message "${{ github.sha }}"
+        # Deployed from a copy outside the repository: inside it, the Netlify
+        # CLI sees the npm workspaces (api, web, mcp-app) and refuses to guess.
+        run: |
+          rm -rf "$RUNNER_TEMP/site" && cp -r web/dist "$RUNNER_TEMP/site"
+          ls -A "$RUNNER_TEMP/site"
+          cd "$RUNNER_TEMP/site"
+          npx --yes netlify-cli@latest deploy --dir . --prod --no-build \
+            --site "${{ secrets.NETLIFY_SITE_ID }}" --message "${{ github.sha }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       - name: Smoke checks
