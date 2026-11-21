@@ -139,7 +139,7 @@ async function setAuthors(client: DbClient, bookId: number, names: string[]): Pr
 }
 
 /** Throws a unique violation on books_google_volume_id_key if the volume is already in the catalog. */
-export async function insertRelease(client: DbClient, input: CreateRelease): Promise<Release> {
+export async function insertRelease(client: DbClient, input: CreateRelease & { googleVolumeId: string }): Promise<Release> {
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO books (google_volume_id, title, published_date, date_precision, categories, thumbnail_url)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,

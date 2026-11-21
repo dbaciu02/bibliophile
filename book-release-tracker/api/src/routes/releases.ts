@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Router, type Response } from "express";
 import { writeAudit } from "../audit.js";
 import { emitEvent } from "../events/emit.js";
@@ -14,6 +15,7 @@ import { rateLimit } from "../rateLimit.js";
  *   GET    /api/releases          public    200, 400
  *   GET    /api/releases/:id      public    200, 400, 404
  *   POST   /api/releases          Curator   201 + Location, 400, 401, 403, 409
+ *                                            (no googleVolumeId = added by hand: the server assigns "manual-…")
  *   PATCH  /api/releases/:id      Curator   200, 400, 401, 403, 404
  *   DELETE /api/releases/:id      Curator   204, 400, 401, 403, 404   (soft hide)
  *
@@ -29,6 +31,8 @@ import { rateLimit } from "../rateLimit.js";
  * Only successful reads are cached; errors fall through with no cache headers.
  */
 export const PUBLIC_CDN_TTL_SECONDS = 60;
+/** googleVolumeId of a release a curator typed in by hand. */
+export const MANUAL_PREFIX = "manual-";
 function publicCacheHeaders(res: Response): void {
   res.set("Cache-Control", "public, max-age=0, must-revalidate");
   res.set("Netlify-CDN-Cache-Control", `public, max-age=${PUBLIC_CDN_TTL_SECONDS}`);
@@ -58,7 +62,9 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
   });
 
   router.post("/", curatorAuth, writeLimit, async (req, res) => {
-    const body = CreateReleaseBody.parse(req.body);
+    const parsed = CreateReleaseBody.parse(req.body);
+    // Added by hand (no Google volume): a random id that can't clash with Google's or the seed's.
+    const body = { ...parsed, googleVolumeId: parsed.googleVolumeId ?? `${MANUAL_PREFIX}${randomBytes(12).toString("base64url")}` };
     const actor = principalOf(res.locals);
     try {
       const created = await withTransaction(db, async (client) => {

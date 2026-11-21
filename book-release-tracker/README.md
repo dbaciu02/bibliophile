@@ -144,9 +144,9 @@ with a local test key and the real verification code checks them.
 
 | Path | Who | What |
 | --- | --- | --- |
-| `/` | everyone | Upcoming releases grouped by month (tick "Include past releases" for books already out); search by title, author, category, date range. Filters live in the URL, so a search can be bookmarked |
+| `/` | everyone | Upcoming releases grouped by month (tick "Include past releases" for books already out); search by title, author, category, date range. Filters live in the URL, so a search can be bookmarked. Curators also get **Edit** and **Hide** on each release |
 | `/watchlist` | signed in | Follow authors; each shows how many upcoming releases they have |
-| `/curate` | Curator | Search Google Books by keywords, title, author, subject, publisher or ISBN; filter by year or upcoming only; sort by relevance or newest; import into the catalog |
+| `/curate` | Curator | **Add a release by hand** (title, authors, date as `2027` / `2027-03` / `2027-03-15`, categories, optional cover link), or search Google Books by keywords, title, author, subject, publisher or ISBN; filter by year or upcoming only; sort by relevance or newest; import into the catalog |
 
 The releases page updates itself live (● Live / Reconnecting… indicator, a
 "New" tag, and a Live update log). How reconnects avoid lost or duplicated

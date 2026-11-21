@@ -8,10 +8,24 @@ import { apiUrl } from "./base";
 
 export type ApiResult<T> =
   | { ok: true; status: number; data: T }
-  | { ok: false; status: number | null; message: string; requestId?: string };
+  | { ok: false; status: number | null; message: string; requestId?: string; details?: FieldError[] };
+
+/** One invalid field from a 400: `path` is the field name, e.g. "title" or "authors.0". */
+export interface FieldError {
+  path: string;
+  message: string;
+}
 
 interface ErrorBody {
-  error: { code: string; message: string; requestId: string };
+  error: { code: string; message: string; requestId: string; details?: unknown };
+}
+
+function fieldErrors(v: unknown): FieldError[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v.filter(
+    (d): d is FieldError => typeof d === "object" && d !== null && typeof d.path === "string" && typeof d.message === "string",
+  );
+  return out.length > 0 ? out : undefined;
 }
 
 function isErrorBody(v: unknown): v is ErrorBody {
@@ -43,9 +57,15 @@ export async function apiRequest<T>(
 
   const json: unknown = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
-    return isErrorBody(json)
-      ? { ok: false, status: res.status, message: json.error.message, requestId: json.error.requestId }
-      : { ok: false, status: res.status, message: `Request failed (${res.status})` };
+    if (!isErrorBody(json)) return { ok: false, status: res.status, message: `Request failed (${res.status})` };
+    const details = fieldErrors(json.error.details);
+    return {
+      ok: false,
+      status: res.status,
+      message: json.error.message,
+      requestId: json.error.requestId,
+      ...(details ? { details } : {}),
+    };
   }
   try {
     return { ok: true, status: res.status, data: opts.parse ? opts.parse(json) : (json as T) };

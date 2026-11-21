@@ -7,10 +7,13 @@ import { Remote } from "../components/Remote";
 import { formatReleaseDate } from "../format";
 import { navigate, useLocation } from "../router";
 import { useRemote } from "../useRemote";
+import { AddReleaseForm } from "../components/ReleaseEditor";
 
 /**
- * Curators search Google Books (through our API and its cache) and import
- * volumes into the catalog. The page hides itself from non-curators, but that
+ * Curators add releases two ways: by hand (AddReleaseForm, for books Google
+ * doesn't have or made-up test data), or by searching Google Books (through
+ * our API and its cache) and importing volumes. Edit and Hide are on each
+ * release row of the releases page. The page hides itself from non-curators, but that
  * is only convenience: the API returns 403 to anyone else regardless.
  *
  * The search form's fields map to Google's field searches (title, author,
@@ -58,7 +61,7 @@ export function CuratePage() {
     return (
       <>
         <h1>Curate</h1>
-        <p>Curators sign in to add releases from Google Books.</p>
+        <p>Curators sign in to add, import and edit releases.</p>
         <button type="button" onClick={() => void signIn()}>
           Sign in with Microsoft
         </button>
@@ -80,7 +83,9 @@ export function CuratePage() {
 
   return (
     <>
-      <h1>Curate: add releases from Google Books</h1>
+      <h1>Curate</h1>
+      <AddReleaseForm />
+      <h2>Add from Google Books</h2>
       {/* Keys must differ between siblings, or React can leave an old copy on screen. */}
       <SearchForm key={`form:${key}`} initial={current} />
       {hasTextField(current) && <Results key={`results:${key}`} params={params} values={current} />}

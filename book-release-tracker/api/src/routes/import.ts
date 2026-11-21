@@ -64,7 +64,7 @@ export function importRouter(db: Db, verify: TokenVerifier, books: BooksService)
         throw new HttpError(400, "validation_failed", "This Google Books volume can't be imported as-is", problems);
       }
 
-      const input: CreateRelease = {
+      const input: CreateRelease & { googleVolumeId: string } = {
         googleVolumeId: c.googleVolumeId,
         title: c.title,
         publishedDate: { date: c.releaseDate as string, precision: c.datePrecision as NonNullable<typeof c.datePrecision> },

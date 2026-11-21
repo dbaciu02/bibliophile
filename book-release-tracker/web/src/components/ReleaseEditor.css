@@ -1,0 +1,10 @@
+/* Curator editing tools (ReleaseEditor.tsx). Uses the theme's variables, so it
+   fits the current look and the cozy theme alike. */
+.add-by-hand { margin-bottom: 1.5rem; }
+.add-by-hand h2 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+.add-by-hand h2 button.link { font-size: inherit; font-weight: inherit; text-decoration: none; }
+.curate-form .field small { display: block; font-size: 0.8rem; margin-top: 0.2rem; }
+.curate-form input[aria-invalid="true"] { border-color: var(--error); }
+.curator-actions { margin-top: 0.35rem; font-size: 0.9rem; }
+.release .curate-form { margin-top: 0.5rem; }
+.curate-form .grid.release-fields { align-items: start; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }

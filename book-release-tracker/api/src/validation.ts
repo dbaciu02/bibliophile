@@ -37,7 +37,9 @@ const Categories = z
 const ThumbnailUrl = z.url({ protocol: /^https$/ }).max(2000).nullable();
 
 export const CreateReleaseBody = z.strictObject({
-  googleVolumeId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Must be a Google Books volume id"),
+  // Optional: a release added by hand has no Google volume, and the server
+  // gives it a "manual-…" id instead (unique, like every volume id).
+  googleVolumeId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, "Must be a Google Books volume id").optional(),
   title: trimmed(500),
   publishedDate: PublishedDate,
   authors: Authors,

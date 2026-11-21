@@ -6,6 +6,8 @@ import { LiveLog, LiveStatusPill } from "../live/LiveStatus";
 import { useLiveEvents, type LiveEvent } from "../live/useLiveEvents";
 import { navigate, useLocation } from "../router";
 import { useRemote } from "../useRemote";
+import { hasRole, useMe } from "../auth/useMe";
+import { CuratorActions } from "../components/ReleaseEditor";
 
 /**
  * The public page (F1): upcoming releases with search and filters. No sign-in
@@ -53,6 +55,13 @@ export function ReleasesPage() {
     cdn: true, // public catalog: served through the site's CDN (D6)
   });
   const filtered = FILTERS.some((k) => search.get(k));
+
+  // Curators get Edit / Hide on each row (the API enforces the role regardless).
+  const { me } = useMe();
+  const curator = hasRole(me, "Curator");
+  // After a curator's own change: refetch a fresh copy (new cache key) at once,
+  // without waiting for the live event, which also arrives and refetches.
+  const afterEdit = useCallback(() => refresh(String(Date.now())), [refresh]);
 
   // ---- live updates
   const [newIds, setNewIds] = useState<ReadonlySet<number>>(new Set());
@@ -120,7 +129,7 @@ export function ReleasesPage() {
             )
           }
         >
-          {(page) => <ReleaseList page={page} offset={offset} search={search} newIds={newIds} />}
+          {(page) => <ReleaseList page={page} offset={offset} search={search} newIds={newIds} curator={curator} onChanged={afterEdit} />}
         </Remote>
       </section>
     </>
@@ -196,11 +205,15 @@ function ReleaseList({
   offset,
   search,
   newIds,
+  curator,
+  onChanged,
 }: {
   page: ReleasePage;
   offset: number;
   search: URLSearchParams;
   newIds: ReadonlySet<number>;
+  curator: boolean;
+  onChanged: () => void;
 }) {
   // One heading per month (or "Sometime in YYYY"), each heading once.
   const groups = groupReleases<Release>(page.items);
@@ -236,6 +249,7 @@ function ReleaseList({
                     <time dateTime={r.releaseDate}>{formatReleaseDate(r.releaseDate, r.datePrecision)}</time>
                     {r.categories.length > 0 && <span className="tag">{r.categories.join(", ")}</span>}
                   </p>
+                  {curator && <CuratorActions release={r} onChanged={onChanged} />}
                 </div>
               </li>
             ))}

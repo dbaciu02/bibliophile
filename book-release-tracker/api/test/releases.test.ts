@@ -107,6 +107,18 @@ describe("POST /api/releases", () => {
     expect(paths).toEqual(["authors", "googleVolumeId", "publishedDate", "title"]);
   });
 
+  it("without a googleVolumeId (added by hand): the server assigns a unique manual- id", async () => {
+    const { googleVolumeId: _omit, ...byHand } = newRelease({ title: "Typed In By Hand" });
+    const a = await request(app).post("/api/releases").set(curator).send(byHand);
+    const b = await request(app).post("/api/releases").set(curator).send(byHand);
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201); // same title twice is allowed: two different books
+    expect(a.body.googleVolumeId).toMatch(/^manual-[A-Za-z0-9_-]{16}$/);
+    expect(b.body.googleVolumeId).not.toBe(a.body.googleVolumeId);
+    const rows = await auditRows(a.body.id);
+    expect(rows.map((r) => r.action)).toEqual(["release.create"]);
+  });
+
   it("400 for an unknown field (strict validation)", async () => {
     const res = await request(app).post("/api/releases").set(curator).send(newRelease({ hidden: false }));
     expect(res.status).toBe(400);
