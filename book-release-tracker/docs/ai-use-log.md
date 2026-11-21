@@ -1,9 +1,5 @@
 # AI use log (Q3 / deliverable 8)
 
-Keep one row per session where AI helped. Be specific about what you accepted,
-what you changed, and what you checked yourself — the oral defense (Q4)
-requires you to explain any of it.
-
 | Date | Tool | What I asked for | What it produced | What I changed / verified myself |
 | --- | --- | --- | --- | --- |
 | 2026-10-22 | Claude | Project plan mapped to the requirements checklist; Entra ID chosen as OIDC provider | Plan: stack, data model, routes, build order | _(fill in)_ |
@@ -16,6 +12,8 @@ requires you to explain any of it.
 | 2026-11-18 | Claude | Step 6: Implement book release tracking | API and web client updated to track book releases | _(fill in: e.g. verified tracking logic, checked database entries, ensured correct handling of release dates)_ |
 | 2026-11-18 | Claude | Create synthetic book data | API and web client updated to track book releases | _(fill in: e.g. verified tracking logic, checked database entries, ensured correct handling of release dates)_ |
 | 2026-11-18 | Claude | Step 7: Added MCP app | MCP app integrated with the API and web client | _(fill in: e.g. verified watchlist logic, checked database entries, ensured correct handling of watchlist actions)_ |
+| 2026-11-20 | Claudde | Step 8: Deployment | Deployment scripts and environment configured for staging and production | _(fill in: e.g. verified deployment process, checked environment variables, ensured correct handling of different environments)_ |
+| 2026-11-20 | Claude | Step 9: Operations| Walked through collecting evidence for operations | _(fill in: e.g. verified deployment process, checked environment variables, ensured correct handling of different environments)_ |
 
 
 ## Challenged AI claims

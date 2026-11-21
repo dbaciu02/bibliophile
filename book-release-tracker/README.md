@@ -47,13 +47,16 @@ Dockerfile    the API image (API + migrations + MCP App), built and pushed by CI
 Requires Node 22+ and either Docker or a local PostgreSQL 16.
 
 ```bash
-git clone <repo-url> && cd book-release-tracker
+git clone <repo-url> bibliophile && cd bibliophile/book-release-tracker
 npm install
 
 # 1. Database on localhost:5433 (not 5432, so it doesn't clash with a
 #    Postgres already installed on the machine). Skip if you run Postgres
 #    yourself; create the same two DBs and adjust the URLs in api/.env.
 docker compose up -d db
+
+# If `npm test` says database "booktracker_test" does not exist:
+docker compose exec db psql -U app -d booktracker -c "CREATE DATABASE booktracker_test OWNER app;"
 
 # 2. Configuration (fill in the Entra IDs: see docs/entra-id-setup.md)
 cp .env.example api/.env
