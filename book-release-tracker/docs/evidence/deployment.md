@@ -128,11 +128,21 @@ ok, refused: permission denied for database "bibliophile_prod"
    fails). Meanwhile check `curl $SAPI/healthz`. Render keeps the old version
    serving when a new deploy fails its health check, so it should still
    answer with the **old** commit. Record what you actually see.
-   *(screenshot of the run + the curl)*
+   *(screenshot is in evidence/screenshots folder + the curl)*
+   Curl: 
+   ```
+   (base) dorabaciu@MacBookPro bibliophile % curl -s $SAPI/healthz
+    {"status":"ok","db":"ok","commit":"70103b9bd98fd7f7d579e894546c2192a83d3b92"}%   
+   ```
 3. Try to release it anyway: Actions → **promote** → that commit's SHA. It
    fails at "Gate: this commit is healthy on staging" ("is not what staging
    is running"). Production never changed: `curl $API/healthz`.
-   *(screenshot + curl)*
+   *(screenshot is in evidence/screenshots folder + the curl)*
+   Curl: 
+   ```
+   dorabaciu@MacBookPro bibliophile % curl -s $API/healthz
+  {"status":"ok","db":"ok","commit":"70103b9bd98fd7f7d579e894546c2192a83d3b92"}
+   ```
 4. `git revert HEAD && git push`. Staging goes green again.
 
 ## D4 — CI/CD with SHA + digest, health gate, rollback

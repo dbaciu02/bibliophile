@@ -9,7 +9,6 @@ import { loadAppHtml } from "./mcp/tools.js";
 import { createBooksService } from "./googleBooks/cachedBooks.js";
 import { createGoogleBooksClient } from "./googleBooks/client.js";
 import { log } from "./log.js";
-if (process.env.NODE_ENV === "production") throw new Error("deliberate failure: D3 evidence");
 
 const config = loadConfig();
 const db = createDb(config.DATABASE_URL);
