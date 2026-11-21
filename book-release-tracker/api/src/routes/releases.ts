@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { writeAudit } from "../audit.js";
 import { emitEvent } from "../events/emit.js";
 import { principalOf, requireAuth, SCOPES, type TokenVerifier } from "../auth.js";
@@ -19,6 +19,23 @@ import { rateLimit } from "../rateLimit.js";
  *
  * POST /api/releases/import (fill a release from Google Books) is in routes/import.ts.
  */
+/**
+ * D6: the public catalog is the one API class a shared cache may keep.
+ * The site proxies GET /api/releases* through Netlify (same origin), and
+ * Netlify's CDN stores a 200 for 60 s, keyed by path + query string. Browsers
+ * always revalidate (ETag -> 304), so they never hold a stale copy themselves.
+ * Live updates refetch with `?v=<event id>`: a new cache key per change, so a
+ * change shows at once even though older keys may live out their 60 s.
+ * Only successful reads are cached; errors fall through with no cache headers.
+ */
+export const PUBLIC_CDN_TTL_SECONDS = 60;
+function publicCacheHeaders(res: Response): void {
+  res.set("Cache-Control", "public, max-age=0, must-revalidate");
+  res.set("Netlify-CDN-Cache-Control", `public, max-age=${PUBLIC_CDN_TTL_SECONDS}`);
+  res.set("Netlify-Vary", "query");
+  res.set("Netlify-Cache-Tag", "releases");
+}
+
 export function releasesRouter(db: Db, verify: TokenVerifier): Router {
   const router = Router();
   const curatorAuth = requireAuth(verify, { scope: SCOPES.releasesWrite, roles: ["Curator"] });
@@ -28,6 +45,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
   router.get("/", async (req, res) => {
     const query = ListReleasesQuery.parse(req.query);
     const page = await listReleases(db, query);
+    publicCacheHeaders(res);
     res.json({ ...page, limit: query.limit, offset: query.offset });
   });
 
@@ -35,6 +53,7 @@ export function releasesRouter(db: Db, verify: TokenVerifier): Router {
     const { id } = IdParam.parse(req.params);
     const release = await getRelease(db, id);
     if (!release) throw new HttpError(404, "not_found", `Release ${id} not found`);
+    publicCacheHeaders(res);
     res.json(release);
   });
 

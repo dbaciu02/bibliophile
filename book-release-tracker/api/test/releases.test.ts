@@ -242,6 +242,53 @@ describe("GET /api/releases/:id", () => {
   });
 });
 
+// D6: public reads may be kept by the CDN for a short time; errors and
+// anything else may not. Browsers always revalidate.
+describe("GET /api/releases cache policy (D6)", () => {
+  beforeAll(resetDb);
+
+  it("a list read is CDN-cacheable for 60 s, keyed by query, and browsers revalidate", async () => {
+    const res = await request(app).get("/api/releases?limit=5");
+    expect(res.status).toBe(200);
+    expect(res.headers["cache-control"]).toBe("public, max-age=0, must-revalidate");
+    expect(res.headers["netlify-cdn-cache-control"]).toBe("public, max-age=60");
+    expect(res.headers["netlify-vary"]).toBe("query");
+    expect(res.headers["netlify-cache-tag"]).toBe("releases");
+  });
+
+  it("an ETag lets the browser revalidate with a 304", async () => {
+    const first = await request(app).get("/api/releases");
+    expect(first.headers.etag).toBeTruthy();
+    const again = await request(app).get("/api/releases").set("If-None-Match", String(first.headers.etag));
+    expect(again.status).toBe(304);
+  });
+
+  it("accepts and ignores the ?v= cache-version key, but only digits", async () => {
+    const plain = await request(app).get("/api/releases");
+    const versioned = await request(app).get("/api/releases?v=12345");
+    expect(versioned.status).toBe(200);
+    expect(versioned.body).toEqual(plain.body);
+    expect((await request(app).get("/api/releases?v=abc")).status).toBe(400);
+  });
+
+  it("a single release is cacheable too; a 404 or 400 is not", async () => {
+    const { id } = await create(newRelease());
+    expect((await request(app).get(`/api/releases/${id}`)).headers["netlify-cdn-cache-control"]).toBe("public, max-age=60");
+    const missing = await request(app).get("/api/releases/999999");
+    expect(missing.status).toBe(404);
+    expect(missing.headers["netlify-cdn-cache-control"]).toBeUndefined();
+    const bad = await request(app).get("/api/releases?limit=0");
+    expect(bad.status).toBe(400);
+    expect(bad.headers["netlify-cdn-cache-control"]).toBeUndefined();
+  });
+
+  it("writes are never cacheable", async () => {
+    const res = await request(app).post("/api/releases").set(curator).send(newRelease());
+    expect(res.status).toBe(201);
+    expect(res.headers["netlify-cdn-cache-control"]).toBeUndefined();
+  });
+});
+
 describe("PATCH /api/releases/:id", () => {
   let id: number;
   beforeEach(async () => {

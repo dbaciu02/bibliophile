@@ -6,6 +6,19 @@ and a personal author watchlist — built to meet the course's final web
 application requirements.
 
 **Status: step 9 of 9 — operations (observability, performance, accessibility, cost, runbook, Game Day).** See [Build plan](#build-plan) and the
+
+**Live:**
+
+| | Production | Staging |
+| --- | --- | --- |
+| Website | https://bibliophile.dorabaciu.dev | https://staging.bibliophile.dorabaciu.dev |
+| API (health + commit) | https://api.bibliophile.dorabaciu.dev/healthz | https://api.staging.bibliophile.dorabaciu.dev/healthz |
+| MCP endpoint | https://api.bibliophile.dorabaciu.dev/mcp | https://api.staging.bibliophile.dorabaciu.dev/mcp |
+
+Sign-in works only for accounts in the project's own Entra tenant (test users;
+credentials are in the private hand-off, not here). Signed out, the release
+list is public. The free API sleeps after 15 minutes idle: the first request
+after that takes about a minute.
 full [requirements checklist](docs/requirements-checklist.md).
 
 ## Layout
@@ -21,11 +34,12 @@ mcp-app/      MCP App: the release calendar shown inside AI assistants (React + 
 scripts/      curl-evidence.sh (F3), mcp-evidence.sh (F12) transcripts
   deploy/       deploy helpers used by CI (Render deploy, health gate, smoke checks) and DB setup
   traffic.sh    steady test traffic (Game Day, dashboard); lh-summary.mjs: Lighthouse before/after table
+              load-test.mjs: small read-only load test for the scaling section of cost.md
 docs/         setup guides (Entra, deployment, observability), architecture, cost, runbook,
               Game Day, secrets inventory, evidence, AI use log
 docker/       local database init
 Dockerfile    the API image (API + migrations + MCP App), built and pushed by CI
-.github/      workflows: deploy (CI + staging), promote (production), rollback, cert-check
+.github/      workflows: deploy (CI + staging), promote (production), rollback, cert-check, purge-cache
 ```
 
 ## Run it on a clean machine

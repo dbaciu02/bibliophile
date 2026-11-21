@@ -32,7 +32,7 @@ improvement and measure again under the same conditions.
    node scripts/lh-summary.mjs docs/evidence/lighthouse/before-*.json -- docs/evidence/lighthouse/after-*.json
    ```
 
-## Baseline (before) — commit `_______`, date `_______`
+## Baseline (before) — commit `_______`, date `11-20-2026`
 
 *(paste the "before" part of the summary, or the table once both exist)*
 
@@ -55,7 +55,7 @@ What changed (the `d8-improvement` zip; read its commit message/diff):
    origin in the HTML, so DNS + TLS to the API overlap with downloading the
    JavaScript instead of starting after it.
 
-Your hypothesis — which metric should move, and why: _____
+Your hypothesis predicted before — which metric should move, and why: _____
 
 ## After — commit `_______`, date `_______`
 

@@ -14,7 +14,7 @@ the domain in the GitHub variable `WEB_URL`.
 | Sign-in | Entra ID `booktracker-api` / `booktracker-web` | `…-staging` registrations | entra.microsoft.com → App registrations |
 | Book data | Google Books API (key per environment) | | console.cloud.google.com → Credentials |
 | Telemetry, alert | Grafana Cloud, dashboard "Bibliophile API — SLOs" | same, `environment` dropdown | grafana.com → your stack |
-| Pipeline | GitHub Actions: `deploy` (→ staging), `promote` (→ production), `rollback`, `cert-check` | | the repository → Actions |
+| Pipeline | GitHub Actions: `deploy` (→ staging), `promote` (→ production), `rollback`, `cert-check`, `purge-cache` (CDN copy of the catalog) | | the repository → Actions |
 
 Secrets and where they live: [secrets.md](secrets.md). Full setup:
 [deployment.md](deployment.md).
@@ -45,6 +45,8 @@ Secrets and where they live: [secrets.md](secrets.md). Full setup:
 | Browser console: "blocked by CORS policy" | `CORS_ORIGINS` doesn't list the site's exact origin | Render → service → Environment → `CORS_ORIGINS=https://<site host>` (no trailing slash) |
 | Browser console: "Refused to connect … Content Security Policy" | Site was built with a different `VITE_API_BASE_URL` | GitHub → Settings → Environments → that environment → `API_URL`, then re-run its deploy |
 | Curate search: "Google Books is unavailable right now" | Google down, quota used up (1,000/day), or a bad key | Render logs: `google books failure` lines (`kind`). Quota: Google Cloud → Books API → Quotas. Key: create a new one and update `GOOGLE_BOOKS_API_KEY`. Cached results keep working meanwhile |
+| A curator's change doesn't show for someone who **just opened** the page (it shows within a minute) | The catalog is CDN-cached for 60 s (D6). Open pages get changes at once through live updates; a fresh page load can get a copy up to 60 s old | Usually nothing: it expires by itself. If it must show now: Actions → `purge-cache` → the environment. Check with `curl -sI <site>/api/releases?limit=20` → `Cache-Status: … fwd=miss` |
+| Catalog on the site errors but `<api>/api/releases` works | The site's proxy rule is missing (site built without `VITE_API_BASE_URL`) or points at the wrong API | Look at the smoke step "catalog through the site's CDN" in the last `deploy` run. Fix `API_URL` in that GitHub environment (Settings → Environments), then re-run the deploy |
 | Live pill stays "Reconnecting…" | API restarting or asleep | Wait 1–2 minutes; check `/healthz`. The page reconnects by itself |
 | `deploy` run red at "Gate: staging /healthz" | The new build doesn't start (bad code or config) | Render → staging → Logs for the startup error. Staging keeps serving the previous build. Fix, push again |
 | `promote` red, summary says "Rolled back" | New build failed its health check in production; the pipeline already restored the previous one | Production is fine. Investigate on staging; don't re-promote that commit |

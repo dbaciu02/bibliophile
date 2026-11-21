@@ -14,6 +14,12 @@ import { apiUrl } from "./api/base";
  * `refresh()` re-fetches quietly: the current data stays on screen until the
  * new data arrives, and a failed quiet refresh keeps the old data. Live
  * updates use refresh() so the list doesn't flash.
+ *
+ * `cdn: true` (public catalog reads only, D6): the request goes to the site's
+ * own origin, where Netlify proxies /api/releases* to the API and its CDN may
+ * answer from cache (up to 60 s old). No token is ever sent on this path.
+ * `refresh(version)` adds `v=<version>` to the query: a new cache key for each
+ * change, so a live update fetches a fresh copy instead of a cached one.
  */
 export type RemoteState<T> =
   | { status: "loading" }
@@ -25,6 +31,17 @@ export interface RemoteOptions<T> {
   isEmpty?: (data: T) => boolean;
   /** When given, the request is sent with `Authorization: Bearer <token>`. */
   getToken?: () => Promise<string | null>;
+  /** Fetch from the site's origin so the CDN can serve it. Public data only. */
+  cdn?: boolean;
+}
+
+/** "/api/releases?a=1" + "42" -> "/api/releases?a=1&v=42" */
+export function withVersion(url: string, version: string | undefined): string {
+  if (!version) return url;
+  const [path, query = ""] = url.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set("v", version);
+  return `${path}?${params.toString()}`;
 }
 
 interface ApiErrorBody {
@@ -42,12 +59,20 @@ const never = () => false;
 export function useRemote<T>(
   url: string,
   parse: (json: unknown) => T,
-  { isEmpty = never, getToken }: RemoteOptions<T> = {},
-): { state: RemoteState<T>; retry: () => void; refresh: () => void } {
+  { isEmpty = never, getToken, cdn = false }: RemoteOptions<T> = {},
+): { state: RemoteState<T>; retry: () => void; refresh: (version?: string) => void } {
+  if (cdn && getToken) throw new Error("useRemote: a CDN-cached request must not carry a token");
   const [state, setState] = useState<RemoteState<T>>({ status: "loading" });
-  const [attempt, setAttempt] = useState({ n: 0, quiet: false });
+  const [attempt, setAttempt] = useState<{ n: number; quiet: boolean; version?: string }>({ n: 0, quiet: false });
   const retry = useCallback(() => setAttempt((a) => ({ n: a.n + 1, quiet: false })), []);
-  const refresh = useCallback(() => setAttempt((a) => ({ n: a.n + 1, quiet: true })), []);
+  const refresh = useCallback(
+    (version?: string) =>
+      setAttempt((a) => {
+        const v = version ?? a.version;
+        return v === undefined ? { n: a.n + 1, quiet: true } : { n: a.n + 1, quiet: true, version: v };
+      }),
+    [],
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,7 +93,8 @@ export function useRemote<T>(
           }
           headers.Authorization = `Bearer ${token}`;
         }
-        const res = await fetch(apiUrl(url), { signal: controller.signal, headers });
+        const target = withVersion(url, attempt.version);
+        const res = await fetch(cdn ? target : apiUrl(target), { signal: controller.signal, headers });
         const json: unknown = await res.json().catch(() => null);
         if (!res.ok) {
           fail(
@@ -87,7 +113,7 @@ export function useRemote<T>(
     })();
 
     return () => controller.abort();
-  }, [url, parse, isEmpty, getToken, attempt]);
+  }, [url, parse, isEmpty, getToken, cdn, attempt]);
 
   return { state, retry, refresh };
 }

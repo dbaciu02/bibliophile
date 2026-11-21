@@ -1,0 +1,44 @@
+# D6 invalidation on demand: purge the CDN's cached copies of the public
+# catalog (responses tagged `Netlify-Cache-Tag: releases`) for one
+# environment. HTML and hashed assets are not touched; they are invalidated by
+# deploys as before. Uses the same per-environment Netlify secrets as deploys.
+#
+# When to use: a curator fix must show at once to people who just opened the
+# page (live viewers already get it through ?v=<event id>), or to show the
+# MISS -> HIT -> purge -> MISS sequence for the D6 evidence.
+name: purge-cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which site's CDN to purge
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.WEB_URL }}
+    steps:
+      - name: Purge cache tag "releases"
+        env:
+          SITE: ${{ secrets.NETLIFY_SITE_ID }}
+          TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: |
+          [ -n "$SITE" ] && [ -n "$TOKEN" ] || { echo "::error::NETLIFY_SITE_ID / NETLIFY_AUTH_TOKEN not set for ${{ inputs.environment }}"; exit 1; }
+          code=$(curl -sS -o /tmp/purge.out -w '%{http_code}' -X POST https://api.netlify.com/api/v1/purge \
+            -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+            -d "{\"site_id\":\"$SITE\",\"cache_tags\":[\"releases\"]}")
+          echo "Netlify answered HTTP $code"
+          case "$code" in 2??) ;; *) echo "::error::purge failed (HTTP $code)"; exit 1 ;; esac
+          echo "Purged at $(date -u +%FT%TZ)" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Show the next request is a miss
+        run: |
+          curl -sSI "${{ vars.WEB_URL }}/api/releases?limit=20" | tr -d '\r' | grep -iE '^(cache-status|age|etag):' | tee -a "$GITHUB_STEP_SUMMARY"

@@ -15,7 +15,9 @@ end). They change often. Recheck before relying on them.
 Per visit, worst case (nothing cached in the browser): about **150 kB** from
 Netlify (HTML 0.3 kB + JS 118 kB + CSS 2 kB gzipped, rounded up for
 headers and the favicon), about **4 site requests**, and about **20 kB** of API
-responses. Production deploys: **~10 a month** (the pipeline only redeploys
+responses. Two of the API calls per visit (the catalog list, and its re-check
+when live updates connect) now go **through Netlify's CDN** (D6), about 5 kB
+each before compression, so they count as Netlify requests and bandwidth too. Production deploys: **~10 a month** (the pipeline only redeploys
 the site when `web/` changed).
 
 ## Arithmetic per provider
@@ -28,11 +30,13 @@ per hour and 300 credits a month). The figures below assume it includes
 
 | | 1× | 10× | 100× |
 | --- | --- | --- | --- |
-| Bandwidth | 2,700 × 0.15 MB = 0.4 GB → **8** | 4.05 GB → **81** | 40.5 GB → **810** |
-| Requests | 10,800 → **2** | 108,000 → **22** | 1,080,000 → **216** |
+| Bandwidth, site | 2,700 × 0.15 MB = 0.4 GB → **8** | 4.05 GB → **81** | 40.5 GB → **810** |
+| Bandwidth, catalog through the CDN (2 × 5 kB per visit) | 0.03 GB → **1** | 0.27 GB → **5** | 2.7 GB → **54** |
+| Requests, site | 10,800 → **2** | 108,000 → **22** | 1,080,000 → **216** |
+| Requests, catalog (2 per visit) | 5,400 → **1** | 54,000 → **11** | 540,000 → **108** |
 | Deploys | 10 × 15 = **150** | **150** | **150** |
-| Credits / month | **160** | **253** | **1,176** |
-| Cost | **$7** (plan) | **$7** | $7 + one 500-credit pack $5 = **$12** |
+| Credits / month | **162** | **269** | **1,338** |
+| Cost | **$7** (plan) | **$7** | $7 + one 500-credit pack $5 = **$12** (338 over) |
 
 **Render (API + Postgres).** Free web services sleep after 15 minutes idle
 and share 750 instance hours a month per workspace. An always-on Starter
@@ -40,7 +44,7 @@ instance is $7. The free database expires after 30 days, and Basic-256mb is $6.
 
 | | 1× | 10× | 100× |
 | --- | --- | --- | --- |
-| API, production | Free (awake ~8 h/day ≈ 240 h) | **Starter $7**: awake ~20 h/day would use most of the 750 h, and sleeping breaks the latency SLO | **Starter $7**: ~1.1 M requests ≈ 0.4 req/s average, ~4 req/s at peak, well inside 0.5 CPU |
+| API, production | Free (awake ~8 h/day ≈ 240 h) | **Starter $7**: awake ~20 h/day would use most of the 750 h, and sleeping breaks the latency SLO | **Starter $7**: ~1.1 M requests ≈ 0.4 req/s average, ~4 req/s at peak, well inside 0.5 CPU. Catalog reads are mostly answered by the CDN (see the load test below), so the API sees fewer than that |
 | API, staging | Free (~60 h) | Free | Free |
 | Postgres (both environments, one instance) | **$6** after day 30 ($0 before) | **$6** | **$6** (data stays under 1 GB; Basic-1gb $19 only if memory gets tight) |
 | Cost | **$6** | **$13** | **$13** |
@@ -86,6 +90,56 @@ bandwidth. The cheapest lever is shrinking the bundle
 (the D8 improvement). Next is longer browser caching of the hashed assets
 (already immutable for a year, so returning visitors cost almost nothing;
 the "worst case" above assumes every visit is a first visit).
+
+## Load test and scaling (measured on staging)
+
+`scripts/load-test.mjs` is a small closed-loop load generator: N virtual
+users, each sending one GET, waiting for the answer, then sending the next,
+for D seconds. GET only and no tokens, so it can't change data or reach an
+account. It refuses production hosts unless given `--allow-production`, and
+it counts Netlify CDN hits from the `Cache-Status` header.
+
+Run it from your own machine (Node 22+), against **staging**:
+
+```bash
+SWEB=https://staging.bibliophile.dorabaciu.dev
+SAPI=https://api.staging.bibliophile.dorabaciu.dev
+mkdir -p docs/evidence/load
+# A: catalog through the CDN (what browsers do now)
+node scripts/load-test.mjs "$SWEB/api/releases?limit=20" -c 10 -d 30 --json docs/evidence/load/a-cdn.json
+# B: the same reads straight to the API (no CDN): what the origin can do alone
+node scripts/load-test.mjs "$SAPI/api/releases?limit=20" -c 10 -d 30 --json docs/evidence/load/b-origin.json
+# C: step up the origin until it bends (free instance: 0.1 CPU, 512 MB)
+for c in 1 5 10 20; do node scripts/load-test.mjs "$SAPI/api/releases?limit=20" -c $c -d 20 --json docs/evidence/load/c-origin-$c.json; done
+```
+
+Each run prints a markdown row. Keep Grafana's dashboard
+open during run C and screenshot the latency panel (p95 by route) and the
+Render metrics (CPU, memory) for the same minutes.
+
+Cost of running it: run A is at most ~10,000 requests (a CDN hit takes a
+few ms, so 10 users go fast) at ~5 kB through Netlify ≈ 2 credits for
+requests + 1 for bandwidth = **~3 credits**. Runs B and C don't touch Netlify. Render's free instance has
+no per-request charge.
+
+Results go in [evidence/load-test.md](evidence/load-test.md) (table plus
+screenshots); the conclusions go here:
+
+**Conclusions** *(write from your own numbers, two or three sentences each)*:
+
+1. **Origin capacity.** The highest C row whose p95 is still under the
+   latency SLO's 500 ms (observability.md) is what one free instance sustains. Compare it
+   with the 100× peak above (~4 req/s).
+2. **What the CDN buys.** Compare A with B: req/s, p95, and the hit rate.
+   With a 60 s TTL, the API sees at most about one catalog request per
+   distinct query per minute per CDN node, however many people read it.
+3. **What breaks first, and the fix.** Usually CPU on the 0.1-CPU free
+   instance (latency climbs before errors appear), then the database's
+   connection limit. The fixes in order of cost: the CDN (done), the
+   Starter instance ($7, 0.5 CPU, no sleeping), then a second instance
+   (live events already fan out through Postgres LISTEN/NOTIFY, so every
+   instance sees every change; the rate-limit windows are per instance and
+   would move to a shared store at that point).
 
 ## Budget and free-tier guards (the D11 evidence)
 

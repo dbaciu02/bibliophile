@@ -50,6 +50,7 @@ export function ReleasesPage() {
 
   const { state, retry, refresh } = useRemote(`/api/releases?${apiParams.toString()}`, parseReleasePage, {
     isEmpty: isEmptyPage,
+    cdn: true, // public catalog: served through the site's CDN (D6)
   });
   const filtered = FILTERS.some((k) => search.get(k));
 
@@ -70,8 +71,12 @@ export function ReleasesPage() {
         setAnnouncement("A release was removed.");
       }
       // Coalesce bursts (e.g. a curator importing several books) into one re-fetch.
+      // A real change (id > 0) refetches with ?v=<event id>: a cache key the CDN
+      // has never served before that change, so the list is fresh at once.
+      // "connected" (id 0) only re-checks, and may be answered from cache.
+      const version = e.id > 0 ? String(e.id) : undefined;
       if (pending.current) clearTimeout(pending.current);
-      pending.current = setTimeout(refresh, 250);
+      pending.current = setTimeout(() => refresh(version), 250);
     },
     [refresh],
   );

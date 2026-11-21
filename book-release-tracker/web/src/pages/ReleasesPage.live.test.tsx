@@ -77,6 +77,8 @@ describe("ReleasesPage — live updates", () => {
     });
     await wait(400);
     expect(calls.length).toBe(before + 1);
+    // D6: the re-fetch asks for the newest version, a key the CDN can't have cached yet
+    expect(new URL(calls.at(-1)!.url, "http://x").searchParams.get("v")).toBe("12");
 
     await userEventOpenLog();
     const entries = screen.getAllByRole("listitem").filter((li) => li.closest(".live-log"));
@@ -99,6 +101,22 @@ describe("ReleasesPage — live updates", () => {
     const before = calls.length;
     act(() => lastSource().open());
     await waitFor(() => expect(calls.length).toBe(before + 1));
+    // nothing changed yet, so the cached (unversioned) copy is fine
+    expect(new URL(calls.at(-1)!.url, "http://x").searchParams.has("v")).toBe(false);
+  });
+
+  it("catalog reads never carry a token (they may be served from a shared cache)", async () => {
+    const seen: RequestInit[] = [];
+    mockApi((_url, init) => {
+      seen.push(init);
+      return json(page([]));
+    });
+    renderApp(<ReleasesPage />);
+    await screen.findByText(/No upcoming releases/);
+    act(() => lastSource().emit("release.created", 3, { id: 1, title: "A" }));
+    await wait(300);
+    expect(seen.length).toBeGreaterThan(1);
+    for (const init of seen) expect(new Headers(init.headers).has("Authorization")).toBe(false);
   });
 });
 

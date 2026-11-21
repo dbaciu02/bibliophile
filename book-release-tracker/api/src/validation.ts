@@ -67,6 +67,9 @@ export const ListReleasesQuery = z
     author: trimmed(200).optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).max(10_000).default(0),
+    // Cache-version key (D6): the web app adds ?v=<live event id> after a change
+    // so the CDN serves a fresh copy. The API ignores it.
+    v: z.string().regex(/^\d{1,20}$/).optional(),
   })
   .refine((q) => !q.from || !q.to || q.from <= q.to, { message: '"from" must be on or before "to"', path: ["from"] });
 export type ListReleases = z.infer<typeof ListReleasesQuery>;
