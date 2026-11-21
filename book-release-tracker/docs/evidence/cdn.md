@@ -50,8 +50,8 @@ the ETag request gets **304**; the personal route returns the app's HTML
 
 1. *By time:* wait 60 s and repeat: `fwd=stale` or `fwd=miss`, then hit again.
 2. *By change:* with the site open in a browser (DevTools → Network, filter
-   `releases`), change a release on the Curate page. The list refetches
-   `…&v=<event id>`: a key the CDN has never seen, so it's a **miss** with
+   `releases`), sign in as a curator and click Edit on a release, change its title and save. 
+   The list refetches `…&v=<event id>`: a key the CDN has never seen, so it's a **miss** with
    the change in it. Screenshot the request and its `Cache-Status`.
 3. *On demand:* Actions → **purge-cache** → Run workflow → `staging` (or
    `production`). It purges the `releases` cache tag; its summary shows the
