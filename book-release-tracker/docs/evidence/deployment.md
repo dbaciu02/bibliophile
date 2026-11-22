@@ -320,7 +320,13 @@ request gets **304**; the personal watchlist says `private, no-store`.
 
 **Invalidation:** promote a new commit, then repeat the HTML request. It's a
 **miss** with a new ETag (Netlify invalidates on every deploy), then a hit
-again. *(paste)*
+again. 
+```
+curl -s -w '%{http_code}  %header{cache-status}  etag=%header{etag}\n' -o /dev/null -o /dev/null -o /dev/null "$WEB/" "$WEB/" "$WEB/"
+200  "Netlify Edge"; fwd=miss; fwd-status=200; stored  etag="5f738c6e27a36de6a213441034d159f8-ssl"
+200  "Netlify Edge"; hit; ttl=31536000  etag="5f738c6e27a36de6a213441034d159f8-ssl"
+200  "Netlify Edge"; hit; ttl=31536000  etag="5f738c6e27a36de6a213441034d159f8-ssl"
+```
 
 ## D7 — CORS allowlist; security headers
 

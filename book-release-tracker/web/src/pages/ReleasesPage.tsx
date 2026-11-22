@@ -8,6 +8,8 @@ import { navigate, useLocation } from "../router";
 import { useRemote } from "../useRemote";
 import { hasRole, useMe } from "../auth/useMe";
 import { CuratorActions } from "../components/ReleaseEditor";
+import { BookCover } from "../components/BookCover";
+import { genreClass } from "../genre";
 
 /**
  * The public page (F1): upcoming releases with search and filters. No sign-in
@@ -234,11 +236,7 @@ function ReleaseList({
           <ul className="releases">
             {g.items.map((r) => (
               <li key={r.id} className="release">
-                {r.thumbnailUrl ? (
-                  <img src={r.thumbnailUrl} alt="" width={64} height={96} loading="lazy" />
-                ) : (
-                  <div className="cover-placeholder" aria-hidden="true" />
-                )}
+                <BookCover title={r.title} thumbnailUrl={r.thumbnailUrl} categories={r.categories} />
                 <div>
                   <p className="title">
                     {r.title}
@@ -247,7 +245,9 @@ function ReleaseList({
                   <p className="muted">{r.authors.join(", ")}</p>
                   <p>
                     <time dateTime={r.releaseDate}>{formatReleaseDate(r.releaseDate, r.datePrecision)}</time>
-                    {r.categories.length > 0 && <span className="tag">{r.categories.join(", ")}</span>}
+                    {r.categories.length > 0 && (
+                      <span className={`tag tag-genre ${genreClass(r.categories)}`}>{r.categories.join(", ")}</span>
+                    )}
                   </p>
                   {curator && <CuratorActions release={r} onChanged={onChanged} />}
                 </div>

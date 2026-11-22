@@ -5,6 +5,8 @@ import { AuthProvider } from "./auth/AuthContext";
 import { MeProvider } from "./auth/useMe";
 import { createUserManager } from "./auth/userManager";
 import { readConfig } from "./env";
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/nunito";
 import "./styles.css";
 
 const root = document.getElementById("root");

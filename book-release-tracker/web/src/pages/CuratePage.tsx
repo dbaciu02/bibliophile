@@ -8,6 +8,8 @@ import { formatReleaseDate } from "../format";
 import { navigate, useLocation } from "../router";
 import { useRemote } from "../useRemote";
 import { AddReleaseForm } from "../components/ReleaseEditor";
+import { BookCover } from "../components/BookCover";
+import { genreClass } from "../genre";
 
 /**
  * Curators add releases two ways: by hand (AddReleaseForm, for books Google
@@ -277,11 +279,7 @@ function CandidateRow({ candidate: c }: { candidate: BookCandidate }) {
 
   return (
     <li className="release">
-      {c.thumbnailUrl ? (
-        <img src={c.thumbnailUrl} alt="" width={64} height={96} loading="lazy" />
-      ) : (
-        <div className="cover-placeholder" aria-hidden="true" />
-      )}
+      <BookCover title={c.title} thumbnailUrl={c.thumbnailUrl} categories={c.categories} />
       <div>
         <p className="title">{c.title}</p>
         <p className="muted">{c.authors.join(", ") || "No author listed"}</p>
@@ -291,7 +289,7 @@ function CandidateRow({ candidate: c }: { candidate: BookCandidate }) {
           ) : (
             <span className="muted">No usable release date ({c.publishedDateRaw ?? "none"})</span>
           )}
-          {c.categories.length > 0 && <span className="tag">{c.categories.join(", ")}</span>}
+          {c.categories.length > 0 && <span className={`tag tag-genre ${genreClass(c.categories)}`}>{c.categories.join(", ")}</span>}
         </p>
         {status === "done" ? (
           <p className="ok">In the catalog ✓</p>
