@@ -1,11 +1,15 @@
+import { lazy, Suspense } from "react";
 import { parseHealth } from "./api/schemas";
 import { useAuth } from "./auth/AuthContext";
 import { hasRole, useMe } from "./auth/useMe";
-import { CuratePage } from "./pages/CuratePage";
 import { ReleasesPage } from "./pages/ReleasesPage";
-import { WatchlistPage } from "./pages/WatchlistPage";
 import { Link, useLocation } from "./router";
 import { useRemote } from "./useRemote";
+
+// D8: the home page (releases) is in the main bundle; the other pages are
+// separate files, downloaded only when someone opens them.
+const WatchlistPage = lazy(() => import("./pages/WatchlistPage").then((m) => ({ default: m.WatchlistPage })));
+const CuratePage = lazy(() => import("./pages/CuratePage").then((m) => ({ default: m.CuratePage })));
 
 export function App() {
   const { path } = useLocation();
@@ -39,7 +43,7 @@ export function App() {
       </a>
       <Header path={path} />
       <main id="main" tabIndex={-1}>
-        {page}
+        <Suspense fallback={<p role="status">Loading page…</p>}>{page}</Suspense>
       </main>
       <Footer />
     </>

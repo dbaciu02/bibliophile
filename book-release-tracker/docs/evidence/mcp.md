@@ -187,6 +187,12 @@ What to look for: one `mcp.tool_call` row per call; for the follow, the
 `confirmation_required` row, then a `watchlist.add` row and an `added` row
 with the same user; `[redacted]` instead of the confirmation token.
 
+## Screenshots
+![step 1](screenshots/f13-step-1.png)
+![step 2](screenshots/f13-step-2.png)
+![step 3](screenshots/f13-step-3.png)
+![step 4a](screenshots/f13-step-4a.png) ![step 4b](screenshots/f13-step-4b.png)
+
 ## 5. Interpretation
 The 403 error proves that a read-only token alone can't reach the write tool because the server recognizes the token's limited scope and denies access to any write operations.
 The first add_to_watchlist call can't change anything because it lacks the required confirmation token, which the server demands to prevent unauthorized modifications. Only when the user provides the correct confirmation token can the server proceed with updating the watchlist. The audit rows tie each call to a user by recording the user identity alongside the tool call, ensuring accountability and traceability. The app needs no authorization of its own because all actions are mediated through the user's token and the server enforces the necessary access controls based on that token.

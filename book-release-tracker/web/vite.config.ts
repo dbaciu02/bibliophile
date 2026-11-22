@@ -1,8 +1,23 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
-export default defineConfig({
-  plugins: [react()],
+/**
+ * D8: tell the browser about the API origin in the HTML, so it opens that
+ * connection (DNS + TCP + TLS) while the JavaScript is still downloading,
+ * instead of only when the first API call starts. `crossorigin` because the
+ * API calls are CORS requests, which use a separate connection pool.
+ * Only for builds with an API origin (staging/production); dev uses the proxy.
+ */
+function preconnectToApi(apiOrigin: string): Plugin {
+  return {
+    name: "preconnect-to-api",
+    transformIndexHtml: () =>
+      apiOrigin ? [{ tag: "link", attrs: { rel: "preconnect", href: apiOrigin, crossorigin: "" }, injectTo: "head-prepend" }] : [],
+  };
+}
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), preconnectToApi(loadEnv(mode, process.cwd(), "VITE_").VITE_API_BASE_URL?.trim() ?? "")],
   server: {
     port: 5173,
     // In development the browser talks to Vite only; Vite forwards API calls,
@@ -24,4 +39,4 @@ export default defineConfig({
       "/healthz": "http://localhost:3000",
     },
   },
-});
+}));

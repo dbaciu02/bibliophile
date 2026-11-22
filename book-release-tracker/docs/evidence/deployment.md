@@ -406,13 +406,6 @@ limited per user (watchlist 30/min, curator writes 120/min, MCP 120/min);
 `api/test/security.test.ts` shows the 31st watchlist write getting 429.
 
 ## Interpretation
-
-_(In your own words: what each piece of output proves. Include the TTL choice,
-why a CNAME'd name inherits the main domain's CAA, how the gate stopped the
-broken commit at staging, what the rollback changed, why the personal
-response isn't cached, and why the staging site is refused by the production
-API.)_
-
 D1 
 Proves that the domains are correctly configured for deployment, including the CAA records, TTL settings, and that the allowlist for the production API is enforced per environment. The screenshot of porkbun DNS records shows the relevant CAA and TTL settings for the domain including staging and API subdomains. The dig output shows the DNS resolution and confirms the correct propagation of these settings.
 

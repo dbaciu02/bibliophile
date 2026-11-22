@@ -1,39 +1,43 @@
-import { z } from "zod";
+import { z } from "zod/mini";
 
 /**
  * Runtime checks for every API response the UI uses. The server is ours, but
  * the browser still verifies what it receives: a deploy mismatch or a proxy
  * error page then shows as a clear error state instead of a broken page.
+ *
+ * Uses `zod/mini` (D8): the same validation as full zod, but tree-shakable,
+ * so the browser only downloads the checks used here. Its API is functional:
+ * z.nullable(x) instead of x.nullable(), z.int() instead of z.number().int().
  */
 
 export const DatePrecision = z.enum(["year", "month", "day"]);
 export type DatePrecision = z.infer<typeof DatePrecision>;
 
 export const Release = z.object({
-  id: z.number().int(),
+  id: z.int(),
   googleVolumeId: z.string(),
   title: z.string(),
   authors: z.array(z.string()),
   releaseDate: z.iso.date(),
   datePrecision: DatePrecision,
   categories: z.array(z.string()),
-  thumbnailUrl: z.string().nullable(),
+  thumbnailUrl: z.nullable(z.string()),
   updatedAt: z.string(),
 });
 export type Release = z.infer<typeof Release>;
 
 export const ReleasePage = z.object({
   items: z.array(Release),
-  nextOffset: z.number().int().nullable(),
-  limit: z.number().int(),
-  offset: z.number().int(),
+  nextOffset: z.nullable(z.int()),
+  limit: z.int(),
+  offset: z.int(),
 });
 export type ReleasePage = z.infer<typeof ReleasePage>;
 
 export const WatchlistItem = z.object({
-  id: z.number().int(),
+  id: z.int(),
   author: z.string(),
-  upcomingCount: z.number().int(),
+  upcomingCount: z.int(),
   createdAt: z.string(),
 });
 export type WatchlistItem = z.infer<typeof WatchlistItem>;
@@ -45,19 +49,19 @@ export const BookCandidate = z.object({
   googleVolumeId: z.string(),
   title: z.string(),
   authors: z.array(z.string()),
-  publishedDateRaw: z.string().nullable(),
-  releaseDate: z.iso.date().nullable(),
-  datePrecision: DatePrecision.nullable(),
+  publishedDateRaw: z.nullable(z.string()),
+  releaseDate: z.nullable(z.iso.date()),
+  datePrecision: z.nullable(DatePrecision),
   categories: z.array(z.string()),
-  thumbnailUrl: z.string().nullable(),
+  thumbnailUrl: z.nullable(z.string()),
   inCatalog: z.boolean(),
 });
 export type BookCandidate = z.infer<typeof BookCandidate>;
 
 export const BookSearch = z.object({
   items: z.array(BookCandidate),
-  totalItems: z.number().int(),
-  hiddenByDateFilter: z.number().int(),
+  totalItems: z.int(),
+  hiddenByDateFilter: z.int(),
   googleQuery: z.string(),
   source: z.enum(["live", "cache", "stale"]),
   fetchedAt: z.string(),
