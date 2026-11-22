@@ -31,7 +31,7 @@ improvement and measure again under the same conditions.
    node scripts/lh-summary.mjs docs/evidence/lighthouse/before-*.json -- docs/evidence/lighthouse/after-*.json
    ```
 
-## Baseline (before) — commit `_______`, date `11-20-2026`
+## Baseline (before) — date `11-21-2026`
 
 *(paste the "before" part of the summary, or the table once both exist)*
 
@@ -68,14 +68,22 @@ What changed (the `d8-improvement` zip; read its commit message/diff):
 Your hypothesis predicted before — which metric should move, and why: LCP should decrease because 
 the improvements should reduce the amount of time it takes for LCP to render as well as improve overall page load performance.
 
-## After — commit `_______`, date `_______`
+## After — date `11-21-2026`
 
 ```
+before: 3 run(s) of https://bibliophile.dorabaciu.dev/, 2026-11-22T03:29:20.381Z … 2026-11-22T03:29:47.652Z, form factor mobile
+after: 3 run(s) of https://bibliophile.dorabaciu.dev/, 2026-11-22T03:57:25.770Z … 2026-11-22T03:57:52.063Z, form factor mobile
+
+| Metric (median) | before | after | change |
+| --- | --- | --- | --- |
+| Performance score | 100 | 99 | -1% |
+| LCP (Largest Contentful Paint) | 909 ms | 913 ms | 0% |
+| CLS (Cumulative Layout Shift) | 0.013 | 0.013 | 0% |
+| TBT (Total Blocking Time, lab proxy for INP) | 7 ms | 4 ms | -38% |
+| FCP (First Contentful Paint) | 909 ms | 913 ms | 0% |
+| JavaScript transferred | 122 kB | 105 kB | -14% |
+| Total transferred | 128 kB | 110 kB | -14% |
 ```
 
 ## Interpretation
-
-_(In your own words: did LCP / TBT / transferred bytes move as predicted? Is
-the difference bigger than the run-to-run spread? What would you try next?
-Note anything that limits the comparison, e.g. network variance or the
-free API's cold start.)_
+The LCP did move slightly, increasing from 909 ms to 913 ms, which varies run-to-run and is within the expected noise. The TBT decreased significantly, indicating improved responsiveness, and the transferred bytes decreased as expected due to the smaller JavaScript payload. Overall, the improvements had the intended effect on reducing blocking time and optimizing resource transfer, even if the LCP did not show a substantial change. I would try further optimizations to reduce LCP, such as optimizing the rendering of the h1 element or further reducing JavaScript payloads.
