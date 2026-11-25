@@ -50,7 +50,7 @@ Index Scan using books_published_date_idx on books b  (cost=0.29..37.29 rows=140
   Filter: ((NOT hidden) AND (CASE date_precision ... END >= '2100-01-01'))
 ```
 
-## My output (commit `_______`, date `11-21-2026`)
+## My output (date `11-21-2026`)
 
 ```
 book-release-tracker % >....                                              

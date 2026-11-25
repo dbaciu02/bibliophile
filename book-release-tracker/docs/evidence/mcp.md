@@ -37,7 +37,7 @@ that matter most for the spec:
 - "every tool call is audited with the caller from the token"
 - "Follow asks first, writes only after Confirm, using the server's token" (app)
 
-Paste both outputs (commit `_______`, date `11-17-2026`):
+Paste both outputs (date `11-17-2026`):
 
 ```
 

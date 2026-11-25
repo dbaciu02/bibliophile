@@ -104,11 +104,4 @@ Screenshot:
 
 I deliberately modified the state parameter in the URL to simulate a mismatch. I changed the first 4 letter in the state value to xxxx. By doing this, the app could not find a matching state in its storage. As a result, it displayed the error message "Sign-in failed: No matching state found in storage." This demonstrated that the app correctly checks the state parameter and does not accept a response with an unexpected state. This deliberate mismatch triggered the app's error handling, confirming that the state is enforced and prevents replay attacks.
 
-## Challenged claim worth recording
 
-oidc-client-ts does **not** send a `nonce` for the code flow unless one is
-passed to `signinRedirect()`. Checked on 2026-11-04 by capturing the authorize
-URL in a headless browser with and without `{ nonce: randomNonce() }`: without
-it, there was no `nonce` parameter at all. Re-check this yourself (remove the
-argument in `AuthContext.tsx`, sign in, look at the authorize URL in the
-Network tab, put it back) before putting it in your AI use log.

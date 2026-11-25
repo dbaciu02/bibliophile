@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-11-24T06:29:39.266Z",
+  "urls": [
+    "https://api.staging.bibliophile.dorabaciu.dev/api/releases?limit=20"
+  ],
+  "concurrency": 10,
+  "durationSeconds": 20.1,
+  "requests": 1609,
+  "requestsPerSecond": 80,
+  "errorRatePercent": 0,
+  "latencyMs": {
+    "p50": 102,
+    "p95": 290,
+    "p99": 537,
+    "max": 959
+  },
+  "statuses": {
+    "200": 1609
+  },
+  "cdn": "no Cache-Status header (not through the CDN)",
+  "kilobytesReceived": 9704
+}

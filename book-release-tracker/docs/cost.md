@@ -23,7 +23,7 @@ the site when `web/` changed).
 ## Arithmetic per provider
 
 **Netlify (website + CDN).** Credits: 20 per GB, 2 per 10,000 requests, 15
-per production deploy. **This project is on a paid plan at $7 a month**
+per production deploy. **This project is on a paid plan at $9 a month**
 (upgraded during setup: the free plan allows only 3 custom-domain changes
 per hour and 300 credits a month). The figures below assume it includes
 1,000 credits a month; check Netlify → Billing for the exact allowance.
@@ -36,7 +36,7 @@ per hour and 300 credits a month). The figures below assume it includes
 | Requests, catalog (2 per visit) | 5,400 → **1** | 54,000 → **11** | 540,000 → **108** |
 | Deploys | 10 × 15 = **150** | **150** | **150** |
 | Credits / month | **162** | **269** | **1,338** |
-| Cost | **$7** (plan) | **$7** | $7 + one 500-credit pack $5 = **$12** (338 over) |
+| Cost | **$9** (plan) | **$9** | $9 + one 500-credit pack $5 = **$14** (338 over) |
 
 **Render (API + Postgres).** Free web services sleep after 15 minutes idle
 and share 750 instance hours a month per workspace. An always-on Starter
@@ -78,20 +78,21 @@ existing site. Not counted.
 
 | | 1× | 10× | 100× |
 | --- | --- | --- | --- |
-| During the course (first 30 days) | **$7** (Netlify) | — | — |
-| Steady state, per month | **$13** | **$20** | **$25** |
+| During the course (first 30 days) | **$9** (Netlify) | — | — |
+| Steady state, per month | **$15** | **$22** | **$27** |
 | Biggest line | Netlify plan, then Postgres after the free 30 days | Always-on API + Netlify | Netlify (bandwidth credits) |
 | What breaks first if not paid | the database is deleted (day 30 + 14) | latency SLO (cold starts) | the website stops when credits run out |
 
-Arithmetic: 1× = Netlify $7 + Postgres $6 = $13; 10× = $7 + $6 + Starter API
-$7 = $20; 100× = ($7 + $5) + $6 + $7 = $25. Cost grows roughly with
+Arithmetic: 1× = Netlify $9 + Postgres $6 = $15; 10× = $9 + $6 + Starter API
+$7 = $22; 100× = ($9 + $5) + $6 + $7 = $27. Cost grows roughly with
 **bandwidth**, not requests or users: at 100×, 70% of Netlify credits are
 bandwidth. The cheapest lever is shrinking the bundle
 (the D8 improvement). Next is longer browser caching of the hashed assets
 (already immutable for a year, so returning visitors cost almost nothing;
 the "worst case" above assumes every visit is a first visit).
 
-## Load test and scaling (measured on staging)
+## Load test and scaling (measured on staging) 
+[docs/evidence/load-test.md](docs/evidence/load-test.md) contains the detailed results and screenshots for the load tests.
 
 `scripts/load-test.mjs` is a small closed-loop load generator: N virtual
 users, each sending one GET, waiting for the answer, then sending the next,
@@ -113,51 +114,33 @@ node scripts/load-test.mjs "$SAPI/api/releases?limit=20" -c 10 -d 30 --json docs
 for c in 1 5 10 20; do node scripts/load-test.mjs "$SAPI/api/releases?limit=20" -c $c -d 20 --json docs/evidence/load/c-origin-$c.json; done
 ```
 
-Each run prints a markdown row. Keep Grafana's dashboard
-open during run C and screenshot the latency panel (p95 by route) and the
-Render metrics (CPU, memory) for the same minutes.
-
-Cost of running it: run A is at most ~10,000 requests (a CDN hit takes a
-few ms, so 10 users go fast) at ~5 kB through Netlify ≈ 2 credits for
-requests + 1 for bandwidth = **~3 credits**. Runs B and C don't touch Netlify. Render's free instance has
-no per-request charge.
-
-Results go in [evidence/load-test.md](evidence/load-test.md) (table plus
+Results are in [evidence/load-test.md](evidence/load-test.md) (table plus
 screenshots); the conclusions go here:
 
-**Conclusions** *(write from your own numbers, two or three sentences each)*:
+**Conclusions**:
+For tests A and B, the CDN did help reduce latency and offload requests from the origin server, as indicated by the high 99.1% CDN hit rate for test A and the improved request rate and latency compared to test B. The 5.2% error rate in test A shows some requests still failed despite the CDN. Test B still benefited from the CDN, but with a lower hit rate. For test C, which did not use the CDN, the origin server handled all requests directly, resulting in higher latency and lower request rates as the number of users increased. All of tests in C had no errors.
+What breaks first is the fact that the CPU usage spikes under load, limiting the server's ability to handle more concurrent requests efficiently. What could fix that is letting the CDN handle more of the traffic, thereby reducing the load on the origin server and then initiating a second wave of requests to test the server's capacity under reduced load.
 
-1. **Origin capacity.** The highest C row whose p95 is still under the
-   latency SLO's 500 ms (observability.md) is what one free instance sustains. Compare it
-   with the 100× peak above (~4 req/s).
-2. **What the CDN buys.** Compare A with B: req/s, p95, and the hit rate.
-   With a 60 s TTL, the API sees at most about one catalog request per
-   distinct query per minute per CDN node, however many people read it.
-3. **What breaks first, and the fix.** Usually CPU on the 0.1-CPU free
-   instance (latency climbs before errors appear), then the database's
-   connection limit. The fixes in order of cost: the CDN (done), the
-   Starter instance ($7, 0.5 CPU, no sleeping), then a second instance
-   (live events already fan out through Postgres LISTEN/NOTIFY, so every
-   instance sees every change; the rate-limit windows are per instance and
-   would move to a shared store at that point).
 
 ## Budget and free-tier guards (the D11 evidence)
 
-Only Netlify is paid ($7/month, a fixed plan price); nothing here can surprise-bill:
+Only Netlify is paid ($9/month, a fixed plan price); nothing here can surprise-bill:
 
 | Provider | Guard | Screenshot for the evidence |
 | --- | --- | --- |
-| Netlify | Paid plan ($7/month) with a fixed credit allowance; usage emails as it fills up | Team → Billing → Usage (credits used this cycle) and the plan |
+| Netlify | Paid plan ($9/month) with a fixed credit allowance; usage emails as it fills up | Team → Billing → Usage (credits used this cycle) and the plan |
 | Render | Hobby workspace, free instances; no paid service without choosing one | Workspace → Billing (current month $0) |
 | GitHub | Spending limit $0 for Actions and Packages | Settings → Billing and plans → Spending limits |
 | Grafana Cloud | Free plan, no card on file | Administration → Usage / Billing |
 | Google Cloud | Books API quota (1,000 a day) | APIs & Services → Books API → Quotas |
 
-**A real budget alert:** if your Google Cloud project has a billing account,
-add **Billing → Budgets & alerts → Create budget**: amount **$1**, alerts at
-50% / 90% / 100%, email to you. That's the "budget alert" screenshot. With
-no billing account on the project, nothing can be charged, and the quota
-screenshot is the guard.
+Screenshots:<br>
+[Cost-Github](evidence/screenshots/Cost-Github.png)<br>
+[Cost-Netlify](evidence/screenshots/Cost-netlify.png)<br>
+[Cost-Render](evidence/screenshots/Cost-render.png)<br>
+[Cost-Grafana](evidence/screenshots/Cost-Grafana.png)<br>
+[Cost-GoogleCloud](evidence/screenshots/Cost-GoogleCloud.png)<br>
+[Cost-QuotaGoogleCloud](evidence/screenshots/Cost-QuotaGoogleCloud.png)<br>
 
 ## Sources
 

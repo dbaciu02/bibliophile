@@ -86,8 +86,4 @@ Build steps are listed in [README.md → Build plan](../README.md#build-plan).
 | ~~Individual oral defense~~ | Not required this term | — |
 | Secrets hand-off (separate file, not in the repo) | [secrets.md → Hand-off](secrets.md) | ⬜ end of project |
 
-## Open questions for the instructor
 
-1. Is public Google Books catalog data acceptable under "synthetic data only"? (All users and watchlists are synthetic test accounts.)
-2. For the secrets hand-off: an actual `.env` file, or is access to staging plus the README enough?
-3. Has the charter for the book-release domain been approved? _(Record the date.)_

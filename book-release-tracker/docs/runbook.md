@@ -61,7 +61,9 @@ Secrets and where they live: [secrets.md](secrets.md). Full setup:
      (Basic-256mb) within the 14-day grace period, or the data is deleted.
    - **Available:** a login problem. From a terminal with the admin URL:
      `psql "$ADMIN_URL" -c "select rolname, rolcanlogin from pg_roles where rolname like 'bibliophile_%'"`.
-     If a role shows `f`: `ALTER ROLE bibliophile_prod LOGIN;` (or staging).
+     If a role shows `f`: `ALTER ROLE bibliophile_prod LOGIN;` (or staging: `date +%T`
+      `psql "$ADMIN_URL" -c "ALTER ROLE bibliophile_staging LOGIN"`
+      `curl -s https://api.staging.bibliophile.dorabaciu.dev/healthz; echo`).
 2. The API reconnects by itself as soon as the database accepts it again. No
    restart is needed. Confirm with `/healthz`.
 3. If passwords may have leaked: re-run `scripts/deploy/create-databases.sh`
@@ -95,6 +97,8 @@ Push to `main` → `deploy` updates staging (tests, image, health gate, smoke
 checks). Check staging. Then Actions → `promote` → the commit SHA. It only
 accepts what staging is running.
 
+**Note:** After changing environment variables in Render, re-run deploy / promote, because Render's own redeploy uses the image from service setup.
+
 ## Routine
 
 - **Monthly:** delete old image versions (keep 10). Check Netlify credits, Render
@@ -105,6 +109,6 @@ accepts what staging is running.
 
 ## Escalation
 
-Owner: the repository owner (GitHub). Provider status pages:
+Owner: dbaciu02 (GitHub). Provider status pages:
 status.render.com, netlifystatus.com, status.grafana.com,
 status.cloud.google.com, azure.status.microsoft (Entra).
